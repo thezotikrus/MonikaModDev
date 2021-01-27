@@ -1532,6 +1532,24 @@ init -1 python:
         ]
     )
 
+    ### EMPTY PLATE
+    ## empty_plate
+    # Empty plate which we use for many consumables
+    # thanks JMO
+    mas_acs_empty_plate = MASAccessory(
+        "empty_plate",
+        "empty_plate",
+        MASPoseMap(
+            default="0",
+            use_reg_for_l=True
+        ),
+        stay_on_start=True,
+        acs_type="plate",
+        mux_type=store.mas_sprites.DEF_MUX_LD,
+        keep_on_desk=False
+    )
+    store.mas_sprites.init_acs(mas_acs_empty_plate)
+
     ### HAIRTIES BRACELET (BROWN)
     ## hairties_bracelet_brown
     # The bracelet Monika wore in the vday outfit
