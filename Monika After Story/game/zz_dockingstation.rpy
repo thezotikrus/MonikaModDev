@@ -2263,7 +2263,7 @@ label mas_dockstat_abort_post_show:
     python:
         #Restore the drink and make sure it's kept on desk again
         _curr_drink = MASConsumable._getCurrentDrink()
-        if _curr_drink and _curr_drink.portable:
+        if _curr_drink and _curr_drink.ex_props.get(mas_consumables.PROP_PORTABLE, False):
             _curr_drink.acs.keep_on_desk = True
 
     return
@@ -2523,7 +2523,7 @@ label mas_dockstat_generic_iowait:
         #Prepare the current drink to be removed if needed
         python:
             current_drink = MASConsumable._getCurrentDrink()
-            if current_drink and current_drink.portable:
+            if current_drink and current_drink.ex_props.get(mas_consumables.PROP_PORTABLE, False):
                 current_drink.acs.keep_on_desk = False
 
         #Get Moni off screen

@@ -1669,6 +1669,9 @@ label ch30_minute(time_since_check):
         #Check if we need to lock/unlock the songs rand delegate
         mas_songs.checkRandSongDelegate()
 
+        #Update cons acs if needed
+        MASConsumable.validateConsAcs()
+
         # save the persistent
         renpy.save_persistent()
 

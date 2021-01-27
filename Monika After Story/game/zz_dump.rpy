@@ -322,7 +322,7 @@ init 999 python:
                 #Need to account for consumables which were removed
                 if consumable:
                     #Some prep
-                    dlg_props = consumable.dlg_props
+                    dlg_props = consumable.ex_props
 
                     ref = dlg_props.get(mas_consumables.PROP_CONTAINER, dlg_props.get(mas_consumables.PROP_OBJ_REF))
                     if ref:

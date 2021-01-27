@@ -27,13 +27,13 @@ init python in mas_consumables:
     TYPE_DRINK = 0
     TYPE_FOOD = 1
 
-    #Consumable dialogue prop constants
+    #Consumable prop constants
     #We'll store some shorthand constants for ways to route/say dialogue for consumables here
     CONTAINER_NONE = None
     CONTAINER_PLATE = "plate"
     CONTAINER_CUP = "cup"
 
-    #Dlg property names
+    #Property names
     # key: marks the string to use when referencing the object's container
     # value: string - container name
     PROP_CONTAINER = "container"
@@ -43,23 +43,42 @@ init python in mas_consumables:
     # key: marks whether the consumable should be referred to in plural or not
     # value: boolean, True if plural, False if not.
     PROP_PLUR = "plural"
+    # key: marks whether Monika can take this consumable with her when going out or not
+    # value: boolean, True if can, False if not (not specified == False)
+    # TODO: Right now ONLY for drinks, containers for food wen?
+    PROP_PORTABLE = "portable"
+    # key: marks whether this consumable is compatible with consumables of the opposite type (food w/ drink or drink w/ food)
+    # value: boolean, True if is compatible, False if not (not specified == False)
+    # TODO: allow value to be a const, so if a drink and food has the same value, they are compatible
+    PROP_COMPATIBLE = "compatible"
 
-    #Some templates for consumable dialogue
-    DLG_PREP_HOT_DRINK = {
+    #Some templates for consumables
+    PREP_HOT_DRINK = {
         PROP_CONTAINER: CONTAINER_CUP,
-        PROP_PLUR: False
+        PROP_PLUR: False,
+        PROP_PORTABLE: True,
+        PROP_COMPATIBLE: True
     }
 
-    DLG_NON_PREP_PASTRY = {
+    NON_PREP_PASTRY = {
         PROP_CONTAINER: CONTAINER_NONE,
-        PROP_PLUR: False
+        PROP_PLUR: False,
+        PROP_COMPATIBLE: True
     }
 
-    DLG_NON_PREP_CAKE = {
+    NON_PREP_CAKE = {
         PROP_CONTAINER: CONTAINER_PLATE,
         PROP_OBJ_REF: "slice",
-        PROP_PLUR: False
+        PROP_PLUR: False,
+        PROP_COMPATIBLE: True
     }
+
+    # Keys for acs map for consumables
+    # NOTE: An acs map for a consomable MUST always have an acs (and hence the key) for the full state,
+    # as it can be used as a fallback for the missing acs
+    CONS_FULL = "full"
+    CONS_HALFDONE = "half-done"
+    CONS_DONE = "done"
 
     #Dict of dicts:
     #consumable_map = {
@@ -75,7 +94,7 @@ init python in mas_consumables:
 init 5 python:
     import random
     #MASConsumable class
-    class MASConsumable():
+    class MASConsumable(object):
         """
         Consumable class
 
@@ -83,11 +102,10 @@ init 5 python:
             consumable_id - id of the consumable
             consumable_type - Type of consumable this is
             disp_name - friendly name for this consumable
-            dlg_props - dialogue properties for flows for this consumable
+            ex_props - additional properties for describing this consumable
             start_end_tuple_list - list of (start_hour, end_hour) tuples
-            acs - MASAccessory to display for the consumable
+            acs_map - map of MASAccessory objects to display for the consumable
             split_list - list of split hours
-            portable - NOTE: Only for drinks, whether or not Monika can take this with her when taking her somewhere
             should_restock_warn - whether or not Monika should warn the player that she's running out of this consumable
             late_entry_list - list of integers storing the hour which would be considered a late entry
             max_re_serve - amount of times Monika can get a re-serving of this consumable
@@ -125,10 +143,9 @@ init 5 python:
             consumable_type,
             disp_name,
             start_end_tuple_list,
-            acs,
+            acs_map,
             split_list,
-            dlg_props=None,
-            portable=False,
+            ex_props=None,
             should_restock_warn=True,
             late_entry_list=None,
             max_re_serve=None,
@@ -159,20 +176,14 @@ init 5 python:
                     NOTE: Does NOT support midnight crossover times. If needed, requires a separate entry
                     NOTE: end_hour is exclusive
 
-                acs - MASAccessory object for this consumable
+                acs_map - map of MASAccessory objects for this consumable (for 'full' (100%-50%), 'half-done' (50%-10%), and done (0%) states).
+                    The 'full' key must always be present.
 
                 split_list - list of split hours for prepping
 
-                dlg_props - dialogue properties for use in generic labels. If None, an empty dict is used, and fallback text will be shown
-                    AVAILABLE PROPERTIES:
-                        - mas_consumables.PROP_CONTAINER - Container for this consumable
-                        - mas_consumables.PROP_OBJ_REF - Object reference for this consumable (use if container is not applicable)
-                        - mas_consumables.PROP_PLUR - Whether or not this should be referenced as plural in text
-
+                ex_props - additional properties for describing this consumable. Some used in dialogues in generic labels.
+                    If None, an empty dict is used, and fallback text will be shown
                     (Default: None)
-
-                portable - NOTE: for drinks only. True if Monika can take this with her when going out
-                    (Default: False)
 
                 should_restock_warn - should Monika warn the player that this needs to be restocked?
                     (Default: True)
@@ -225,35 +236,37 @@ init 5 python:
                 consumable_type in store.mas_consumables.consumable_map
                 and consumable_id in store.mas_consumables.consumable_map[consumable_type]
             ):
-                raise Exception("consumable {0} already exists.".format(consumable_id))
+                raise Exception("Consumable {0} already exists.".format(consumable_id))
 
-            self.consumable_id=consumable_id
-            self.consumable_type=consumable_type
-            self.disp_name=disp_name
-            self.start_end_tuple_list=start_end_tuple_list
-            self.acs=acs
-            self.portable=portable
-            self.cons_chance=cons_chance
-            self.cons_low=cons_low
-            self.cons_high=cons_high
+            self.consumable_id = consumable_id
+            self.consumable_type = consumable_type
+            self.disp_name = disp_name
+            self.start_end_tuple_list = start_end_tuple_list
+            if mas_consumables.CONS_FULL not in acs_map:
+                raise Exception("Consumable {0} is missing the required 'full' key in its acs map.".format(consumable_id))
+            self.acs_map = acs_map
+            self.acs = acs_map[mas_consumables.CONS_FULL]
+            self.cons_chance = cons_chance
+            self.cons_low = cons_low
+            self.cons_high = cons_high
 
             if late_entry_list is None:
-                self.late_entry_list=[]
+                self.late_entry_list = []
 
                 for start, end in start_end_tuple_list:
                     self.late_entry_list.append(start)
             else:
-                self.late_entry_list=late_entry_list
+                self.late_entry_list = late_entry_list
 
-            self.max_re_serve=max_re_serve
-            self.max_stock_amount=max_stock_amount
-            self.re_serves_had=0
+            self.max_re_serve = max_re_serve
+            self.max_stock_amount = max_stock_amount
+            self.re_serves_had = 0
 
-            self.dlg_props = dlg_props if dlg_props else dict()
-            self.split_list=split_list
-            self.should_restock_warn=should_restock_warn
-            self.prep_low=prep_low
-            self.prep_high=prep_high
+            self.ex_props = ex_props if ex_props else dict()
+            self.split_list = split_list
+            self.should_restock_warn = should_restock_warn
+            self.prep_low = prep_low
+            self.prep_high = prep_high
 
             #EVLs:
             if consumable_type == 0:
@@ -266,7 +279,7 @@ init 5 python:
                 self.finish_cons_evl = finish_cons_evl if finish_cons_evl is not None else MASConsumable.FOOD_FINISH_EVL
 
             #Timeout prop
-            self.done_cons_until=None
+            self.done_cons_until = None
 
             #Add this to the map
             if consumable_type not in store.mas_consumables.consumable_map:
@@ -280,7 +293,8 @@ init 5 python:
                     "enabled": False,
                     "times_had": 0,
                     "servings_left": 0,
-                    "has_restock_warned": False
+                    "has_restock_warned": False,
+                    "last_had": None
                 }
 
         def enabled(self):
@@ -311,6 +325,41 @@ init 5 python:
             Increments the amount of times Monika has had the consumable
             """
             persistent._mas_consumable_map[self.consumable_id]["times_had"] += 1
+
+        @property
+        def last_had(self):
+            """
+            Getter for last_had
+            """
+            return persistent._mas_consumable_map[self.consumable_id]["last_had"]
+
+        @last_had.setter
+        def last_had(self, value):
+            """
+            Setter for last_had
+
+            IN:
+                value - value for this prop (assuming datetime.datetime)
+            """
+            persistent._mas_consumable_map[self.consumable_id]["last_had"] = value
+
+        def getFullAcs(self):
+            """
+            Returns the acs for this cons when Monika just started consuming it
+            """
+            return self.acs_map[mas_consumables.CONS_FULL]
+
+        def getHalfdoneAcs(self):
+            """
+            Returns the acs for this cons when Monika half-done consumed it
+            """
+            return self.acs_map.get(mas_consumables.CONS_HALFDONE, self.getFullAcs())
+
+        def getDoneAcs(self):
+            """
+            Returns the acs for this cons when Monika's done with it
+            """
+            return self.acs_map.get(mas_consumables.CONS_DONE, self.getHalfdoneAcs())
 
         def shouldHave(self, _now=None):
             """
@@ -449,13 +498,15 @@ init 5 python:
             """
             return persistent._mas_consumable_map[self.consumable_id]["has_restock_warned"]
 
-        def use(self, amount=1):
+        def use(self, amount=1, set_last_had=True):
             """
             Uses a serving of this consumable
 
             IN:
                 amount - amount of servings to use up
-                (Default: 1)
+                    (Default: 1)
+                set_last_had - whether we update the last_had prop or not
+                    (Default: True)
             """
             servings_left = persistent._mas_consumable_map[self.consumable_id]["servings_left"]
 
@@ -463,6 +514,9 @@ init 5 python:
                 persistent._mas_consumable_map[self.consumable_id]["servings_left"] = 0
             else:
                 persistent._mas_consumable_map[self.consumable_id]["servings_left"] -= amount
+
+            if set_last_had:
+                self.last_had = datetime.datetime.now()
 
         def re_serve(self):
             """
@@ -661,6 +715,77 @@ init 5 python:
                 self.done_cons_until = None
                 return True
             return False
+
+        @classmethod
+        def __getCurrentConsProgress(cls, _type):
+            """
+            Returns progress for the current consumable of _type
+
+            IN:
+                _type - the type of consumable to check
+
+            OUT:
+                int, the percentage of progress of having the consumable,
+                OR None if Monika isn't having anything
+            """
+            curr_drink = cls.__getCurrentConsumable(_type)
+            if not curr_drink:
+                return None
+
+            _now = datetime.datetime.now()
+            start_time = curr_drink.last_had
+            end_time = persistent._mas_current_consumable[_type]["consume_time"]
+
+            if _now <= end_time:
+                return 100
+
+            return int(round(float((end_time - start_time).total_seconds()) / (_now - end_time).total_seconds()))
+
+        @staticmethod
+        def _getCurrentDrinkProgress():
+            """
+            Returns progress for the current drink
+
+            OUT:
+                int, the percentage of progress of having the drink,
+                OR None if Monika isn't drinking anything
+            """
+            return cls.__getCurrentConsProgress(TYPE_DRINK)
+
+        @staticmethod
+        def _getCurrentFoodProgress():
+            """
+           Returns progress for the current food
+
+            OUT:
+                int, the percentage of progress of having the food,
+                OR None if Monika isn't eating anything
+            """
+            return cls.__getCurrentConsProgress(TYPE_FOOD)
+
+        @classmethod
+        def validateConsAcs(cls):
+            """
+            Sets appropriate acs for the current consumables (both types)
+            """
+            for _type in mas_consumables.consumable_map.iterkeys():
+                curr_cons_progress = cls.__getCurrentConsProgress(_type)
+                if curr_cons_progress is not None:
+                    curr_cons = cls.__getCurrentConsumable(_type)
+
+                    if 100 <= curr_cons_progress < 65:
+                        appropriate_acs = curr_cons.getFullAcs()
+
+                    elif 65 <= curr_cons_progress < 10:
+                        appropriate_acs = curr_cons.getHalfdoneAcs()
+
+                    else:
+                        appropriate_acs = curr_cons.getDoneAcs()
+
+                    if curr_cons.acs is not appropriate_acs:
+                        monika_chr.remove_acs(curr_cons.acs)
+                        curr_cons.acs = appropriate_acs
+                        monika_chr.wear_acs(curr_cons.acs)
 
         @staticmethod
         def _isStillCons(_type, _now=None):
@@ -977,7 +1102,7 @@ init 5 python:
             """
             Runs a check on all consumables and subtracts the amount used in the player's absence
             """
-            def calculate_and_use(consumable, servings, days_absent):
+            def calculate_and_use(consumable, servings, days_absent, now):
                 """
                 Checks how many servings of the consumable Monika will have used in the player's absence
 
@@ -985,21 +1110,23 @@ init 5 python:
                     consumable - consumable to use
                     servings - amount of servings per having of the consumable
                     days_absent - amount of days the player was absent
+                    now - current datetime
                 """
                 chance = random.randint(1, 100)
                 for day in range(days_absent):
                     if chance <= consumable.cons_chance:
-                        consumable.use(servings)
-
+                        consumable.use(servings, set_last_had=False)
+                        cons.last_had = now - datetime.timedelta(days=days_absent-day)
 
             consumables = MASConsumable._getEnabledConsumables()
             _days = mas_getAbsenceLength().days
+            _now = datetime.datetime.now()
 
             for cons in consumables:
                 if cons.prepable():
-                    calculate_and_use(consumable=cons, servings=random.randint(3,5), days_absent=_days)
+                    calculate_and_use(consumable=cons, servings=random.randint(3,5), days_absent=_days, now=_now)
                 else:
-                    calculate_and_use(consumable=cons, servings=4, days_absent=_days)
+                    calculate_and_use(consumable=cons, servings=4, days_absent=_days, now=_now)
 
         @staticmethod
         def _getEnabledConsumables():
@@ -1176,7 +1303,7 @@ init 5 python:
 
         #Otherwise, if we have a drink out that's portable, let's put it in a thermos so we can take it when we leave
         current_drink = MASConsumable._getCurrentDrink()
-        if current_drink and current_drink.portable:
+        if current_drink and current_drink.ex_props.get(mas_consumables.PROP_PORTABLE, False):
             #We have a current drink. Let's get all accessories of this type so we can essentially spritepack them
             thermoses = [thermos.get_sprobj() for thermos in mas_selspr.filter_acs(True, "thermos-mug")]
 
@@ -1191,10 +1318,9 @@ init 6 python:
         consumable_id="coffee",
         consumable_type=store.mas_consumables.TYPE_DRINK,
         disp_name="coffee",
-        dlg_props=mas_consumables.DLG_PREP_HOT_DRINK,
+        ex_props=mas_consumables.PREP_HOT_DRINK,
         start_end_tuple_list=[(5, 12)],
-        acs=mas_acs_mug,
-        portable=True,
+        acs_map={mas_consumables.CONS_FULL: mas_acs_mug},
         split_list=[11],
         late_entry_list=[10],
         max_re_serve=3
@@ -1204,10 +1330,9 @@ init 6 python:
         consumable_id="hotchoc",
         consumable_type=store.mas_consumables.TYPE_DRINK,
         disp_name="hot chocolate",
-        dlg_props=mas_consumables.DLG_PREP_HOT_DRINK,
-        start_end_tuple_list=[(16,23)],
-        acs=mas_acs_hotchoc_mug,
-        portable=True,
+        ex_props=mas_consumables.PREP_HOT_DRINK,
+        start_end_tuple_list=[(16, 23)],
+        acs_map={mas_consumables.CONS_FULL: mas_acs_hotchoc_mug},
         split_list=[22],
         late_entry_list=[19],
         max_re_serve=3
@@ -1217,11 +1342,11 @@ init 6 python:
         consumable_id="candycane",
         consumable_type=store.mas_consumables.TYPE_FOOD,
         disp_name="candycane",
-        dlg_props={
+        ex_props={
             mas_consumables.PROP_PLUR: True
         },
         start_end_tuple_list=[(11,14), (16, 20)],
-        acs=mas_acs_candycane,
+        acs_map={mas_consumables.CONS_FULL: mas_acs_candycane},
         split_list=[12, 18],
         late_entry_list=[13, 19],
         max_re_serve=2,
@@ -1237,12 +1362,12 @@ init 6 python:
         consumable_id="christmascookies",
         consumable_type=store.mas_consumables.TYPE_FOOD,
         disp_name="Christmas cookie",
-        dlg_props={
+        ex_props={
             mas_consumables.PROP_OBJ_REF: "plate",
             mas_consumables.PROP_PLUR: True
         },
         start_end_tuple_list=[(11,14), (16, 22)],
-        acs=mas_acs_christmascookies,
+        acs_map={mas_consumables.CONS_FULL: mas_acs_christmascookies},
         split_list=[12, 18],
         late_entry_list=[13, 19],
         max_re_serve=2,
@@ -1326,7 +1451,6 @@ label mas_finished_prepping:
     call mas_consumables_generic_finished_prepping(consumable=current_food)
     return
 
-
 ###Eating done
 init 5 python:
     #Like finshed_brewing, this event gets its params from
@@ -1367,7 +1491,7 @@ label mas_get_food:
 label mas_consumables_generic_get(consumable):
     #Get our dlg_props
     python:
-        dlg_props = consumable.dlg_props
+        dlg_props = consumable.ex_props
 
         container = dlg_props.get(mas_consumables.PROP_CONTAINER)
         obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
@@ -1421,7 +1545,6 @@ label mas_consumables_generic_get(consumable):
         m 1eua "Okay, what else should we do today?"
     return
 
-
 label mas_consumables_generic_finish_having(consumable):
     #Some prep
     python:
@@ -1430,7 +1553,7 @@ label mas_consumables_generic_finish_having(consumable):
             and (consumable.prepable() or (not consumable.prepable() and consumable.hasServing()))
         )
 
-        dlg_props = consumable.dlg_props
+        dlg_props = consumable.ex_props
 
         container = dlg_props.get(mas_consumables.PROP_CONTAINER)
         obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
@@ -1522,10 +1645,9 @@ label mas_consumables_generic_finish_having(consumable):
         m 1eua "Okay, what else should we do today?"
     return
 
-
 label mas_consumables_generic_finished_prepping(consumable):
     python:
-        dlg_props = consumable.dlg_props
+        dlg_props = consumable.ex_props
 
         plur = "s" if dlg_props.get(mas_consumables.PROP_PLUR, False) else ""
 
@@ -1537,7 +1659,6 @@ label mas_consumables_generic_finished_prepping(consumable):
     else:
         #Idle pauses and then progresses on its own
         m 1eua "I'm going to get my [consumable.disp_name][plur]. I'll be right back.{w=1}{nw}"
-
 
     #Monika goes offscreen
     call mas_transition_to_emptydesk
@@ -1584,7 +1705,7 @@ label mas_consumables_generic_running_out(consumable):
 
     if amt_left > 0:
         python:
-            dlg_props = consumable.dlg_props
+            dlg_props = consumable.ex_props
 
             container = dlg_props.get(mas_consumables.PROP_CONTAINER)
             obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
@@ -1621,8 +1742,7 @@ label mas_consumables_generic_running_out(consumable):
 
 label mas_consumables_generic_critical_low(consumable):
     python:
-        dlg_props = consumable.dlg_props
-
+        dlg_props = consumable.ex_props
 
         container = dlg_props.get(mas_consumables.PROP_CONTAINER)
         obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
