@@ -1437,6 +1437,60 @@ init -1 python:
     )
     store.mas_sprites.init_acs(mas_acs_candycane)
 
+    ### Cupcake v1 (serious face)
+    ## cupcake_smug
+    # cupcake consumable
+    # Thanks JMO
+    mas_acs_cupcake_smug = MASAccessory(
+        "cupcake_smug",
+        "cupcake_smug",
+        MASPoseMap(
+            default="0",
+            use_reg_for_l=True
+        ),
+        stay_on_start=True,
+        acs_type="plate",
+        mux_type=store.mas_sprites.DEF_MUX_LD,
+        keep_on_desk=False
+    )
+    store.mas_sprites.init_acs(mas_acs_cupcake_smug)
+
+    ### Cupcake v2 (owo face)
+    ## cupcake_owo
+    # cupcake consumable
+    # Thanks JMO
+    mas_acs_cupcake_owo = MASAccessory(
+        "cupcake_owo",
+        "cupcake_owo",
+        MASPoseMap(
+            default="0",
+            use_reg_for_l=True
+        ),
+        stay_on_start=True,
+        acs_type="plate",
+        mux_type=store.mas_sprites.DEF_MUX_LD,
+        keep_on_desk=False
+    )
+    store.mas_sprites.init_acs(mas_acs_cupcake_owo)
+
+    ### Cupcake v3 (uwu face)
+    ## cupcake_uwu
+    # cupcake consumable
+    # Thanks JMO
+    mas_acs_cupcake_uwu = MASAccessory(
+        "cupcake_uwu",
+        "cupcake_uwu",
+        MASPoseMap(
+            default="0",
+            use_reg_for_l=True
+        ),
+        stay_on_start=True,
+        acs_type="plate",
+        mux_type=store.mas_sprites.DEF_MUX_LD,
+        keep_on_desk=False
+    )
+    store.mas_sprites.init_acs(mas_acs_cupcake_uwu)
+
     ### Christmascookies
     ## christmas_cookies
     # christmascookies consumable, available to gift before d25

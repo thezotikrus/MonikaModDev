@@ -144,7 +144,7 @@ init 5 python:
             disp_name,
             start_end_tuple_list,
             acs_map,
-            split_list,
+            split_list=None,
             ex_props=None,
             should_restock_warn=True,
             late_entry_list=None,
@@ -176,10 +176,12 @@ init 5 python:
                     NOTE: Does NOT support midnight crossover times. If needed, requires a separate entry
                     NOTE: end_hour is exclusive
 
-                acs_map - map of MASAccessory objects for this consumable (for 'full' (100%-50%), 'half-done' (50%-10%), and done (0%) states).
+                acs_map - map of MASAccessory objects for this consumable (for 'full' (100%-50%), 'half-done' (50%-10%), and 'done' (0%) states).
                     The 'full' key must always be present.
 
-                split_list - list of split hours for prepping
+                split_list - list of split hours for prepping.
+                    If None, an empty list is used
+                    (Default: None)
 
                 ex_props - additional properties for describing this consumable. Some used in dialogues in generic labels.
                     If None, an empty dict is used, and fallback text will be shown
@@ -1345,11 +1347,10 @@ init 6 python:
         ex_props={
             mas_consumables.PROP_PLUR: True
         },
-        start_end_tuple_list=[(11,14), (16, 20)],
+        start_end_tuple_list=[(11, 13), (16, 20)],
         acs_map={mas_consumables.CONS_FULL: mas_acs_candycane},
-        split_list=[12, 18],
-        late_entry_list=[13, 19],
-        max_re_serve=2,
+        late_entry_list=[12, 19],
+        max_re_serve=1,
         should_restock_warn=False,
         max_stock_amount=18,
         prep_low=None,
@@ -1366,13 +1367,28 @@ init 6 python:
             mas_consumables.PROP_OBJ_REF: "plate",
             mas_consumables.PROP_PLUR: True
         },
-        start_end_tuple_list=[(11,14), (16, 22)],
+        start_end_tuple_list=[(5, 12), (16, 23)],
         acs_map={mas_consumables.CONS_FULL: mas_acs_christmascookies},
-        split_list=[12, 18],
-        late_entry_list=[13, 19],
+        late_entry_list=[11, 22],
         max_re_serve=2,
         should_restock_warn=False,
         max_stock_amount=20,
+        prep_low=None,
+        cons_high=30*60 #30 minute max
+    )
+
+    MASConsumable(
+        consumable_id="cupcake",
+        consumable_type=store.mas_consumables.TYPE_FOOD,
+        disp_name="cupcake",
+        ex_props=mas_consumables.NON_PREP_PASTRY,
+        start_end_tuple_list=[(5, 12), (16, 23)],
+        # Choose one at random on startup
+        acs_map={mas_consumables.CONS_FULL: random.choice((mas_acs_cupcake_smug, mas_acs_cupcake_owo, mas_acs_cupcake_uwu))},
+        late_entry_list=[11, 22],
+        max_re_serve=1,
+        should_restock_warn=False,
+        max_stock_amount=6,
         prep_low=None,
         cons_high=30*60 #30 minute max
     )

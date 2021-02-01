@@ -1586,24 +1586,97 @@ label mas_reaction_promisering:
     $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_promisering", "category"))
     return
 
-
 init 5 python:
     addReaction("mas_reaction_cupcake", "cupcake", is_good=True, exclude_on=["d25g"])
     #Not sure why this was a bad gift. Dialogue doesn't reflect it being bad
     #plus, Monika said she wants either Natsuki's cupcakes or the player's
 
 label mas_reaction_cupcake:
-    m 1wud "Is that a...cupcake?"
-    m 3hub "Wow, thanks [player]!"
-    m 3euc "Come to think of it, I've been meaning to make some cupcakes myself."
-    m 1eua "I wanted to learn how to bake good pastries like Natsuki did."
-    m 1rksdlb "Buuut I still haven't made a kitchen to use!"
-    m 3eub "Maybe in the future once I get better at programming, I'll be able to make one here."
-    m 3hua "Would be nice to have another hobby other than writing, ehehe~"
     $ mas_receivedGift("mas_reaction_cupcake")
+    $ cupcake = mas_getConsumable("cupcake")
+    $ cupcake.restock(servings=3)
+    $ curr_drink = MASConsumable._getCurrentDrink()
+    $ curr_food = MASConsumable._getCurrentFood()
+
+    if cupcake.isMaxedStock():
+        m 1etc "Oh, more cupcakes?"
+        m 1lksdla "Thanks, [player]...{w=0.3}{nw}"
+        extend 1hksdlb "but you've already given me a lot of cupcakes..."
+        m 3ekb "You can give me more once I eat the ones I have now, alright?"
+
+    else:
+        if cupcake.enabled():
+            # We can select a new random sprite here
+            if curr_food is not cupcake:
+                $ cupcake.acs_map[mas_consumables.CONS_FULL] = random.choice((mas_acs_cupcake_smug, mas_acs_cupcake_owo, mas_acs_cupcake_uwu))
+                $ cupcake.acs = cupcake.acs_map[mas_consumables.CONS_FULL]
+
+            $ mas_giftCapGainAff(0.5)
+            m 1wub "Oh, you got me more cupcakes!"
+
+            if (
+                curr_food is None
+                and cupcake.isConsTime()
+                and curr_drink is not None
+                and curr_drink.ex_props.get(mas_consumables.PROP_COMPATIBLE, False)
+            ):
+                python:
+                    if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                        monika_chr.wear_acs(mas_acs_center_quetzalplushie)
+                    cupcake.use()
+                    cupcake.have(skip_leadin=True)
+
+                m 3hub "I was just thinking about getting something along with my drink!"
+                m 1eua "Thanks [player]~"
+
+                if monika_chr.is_wearing_acs(mas_acs_center_quetzalplushie):
+                    m 3eua "Let me just put this plushie away."
+                    call mas_transition_to_emptydesk
+                    $ monika_chr.remove_acs(mas_acs_center_quetzalplushie)
+                    $ renpy.pause(3, hard=True)
+                    call mas_transition_from_emptydesk("monika 3hub")
+                    m "Back!"
+
+            else:
+                m 1hub "You're so sweet~"
+                m 1eua "Thanks [player]~"
+
+        else:
+            $ mas_giftCapGainAff(3)
+
+            m 1eud "Are those...{w=0.3}{nw}"
+            extend 1wub "cupcakes?"
+
+            if curr_food is None:
+                python:
+                    if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                        monika_chr.wear_acs(mas_acs_center_quetzalplushie)
+                    cupcake.use()
+                    cupcake.have(skip_leadin=True)
+
+            m 3hub "Wow, thanks [player]!"
+            m 3euc "Come to think of it, I've been meaning to make some cupcakes myself."
+            m 1eua "I wanted to learn how to bake good pastries like Natsuki did."
+            m 1rksdlb "Buuut I still haven't made a kitchen to use!"
+            m 3eub "Maybe in the future once I get better at programming, I'll be able to make one here."
+            m 3hua "Would be nice to have another hobby other than writing, ehehe~"
+
+            if curr_food is not None:
+                m 3eua "I'll be sure to try this one later~"
+
+            elif monika_chr.is_wearing_acs(mas_acs_center_quetzalplushie):
+                m 1eua "Oh, give me a second. {w=0.3}{nw}"
+                extend 3eua "I'm going to put this plushie away."
+                call mas_transition_to_emptydesk
+                $ monika_chr.remove_acs(mas_acs_center_quetzalplushie)
+                $ renpy.pause(3, hard=True)
+                call mas_transition_from_emptydesk("monika 3hub")
+                m "Back!"
+
+            $ cupcake.enable()
+
     $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_cupcake", "category"))
     return
-
 
 # ending label for gift reactions, this just resets a thing
 label mas_reaction_end:
@@ -1776,13 +1849,13 @@ label mas_reaction_fudge:
     $ persistent._mas_filereacts_reacted_map.pop(gift_ev_cat, None)
     return
 
-
 init 5 python:
     if store.mas_isD25Season():
         addReaction("mas_reaction_christmascookies", "christmascookies", is_good=True, exclude_on=["d25g"])
 
 label mas_reaction_christmascookies:
     $ christmascookies = mas_getConsumable("christmascookies")
+    $ christmascookies.restock(10)
     $ mas_giftCapGainAff(1)
     $ is_having_food = bool(MASConsumable._getCurrentFood())
 
@@ -1799,9 +1872,11 @@ label mas_reaction_christmascookies:
 
         else:
             if not is_having_food:
-                if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
-                    $ monika_chr.wear_acs(mas_acs_center_quetzalplushie)
-                $ christmascookies.have(skip_leadin=True)
+                python:
+                    if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                        monika_chr.wear_acs(mas_acs_center_quetzalplushie)
+                    christmascookies.use()
+                    christmascookies.have(skip_leadin=True)
 
             $ mas_giftCapGainAff(3)
             m 3hua "Christmas cookies!"
@@ -1818,14 +1893,11 @@ label mas_reaction_christmascookies:
                 m 3eua "Let me put this plushie away."
                 call mas_transition_to_emptydesk
                 $ monika_chr.remove_acs(mas_acs_center_quetzalplushie)
-                pause 3.0
+                $ renpy.pause(3.0, hard=True)
                 call mas_transition_from_emptydesk
 
             #Enable the gift
             $ christmascookies.enable()
-
-        #Restock
-        $ christmascookies.restock(10)
 
     $ mas_receivedGift("mas_reaction_christmascookies")
     $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_christmascookies", "category")
@@ -1841,6 +1913,7 @@ init 5 python:
 
 label mas_reaction_candycane:
     $ candycane = mas_getConsumable("candycane")
+    $ candycane.restock(9)
     $ mas_giftCapGainAff(1)
     $ is_having_food = bool(MASConsumable._getCurrentFood())
 
@@ -1855,9 +1928,11 @@ label mas_reaction_candycane:
 
         else:
             if not is_having_food:
-                if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
-                    $ monika_chr.wear_acs(mas_acs_center_quetzalplushie)
-                $ candycane.have(skip_leadin=True)
+                python:
+                    if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                        monika_chr.wear_acs(mas_acs_center_quetzalplushie)
+                    candycane.use()
+                    candycane.have(skip_leadin=True)
 
             $ mas_giftCapGainAff(3)
             m 3wub "Candy canes!"
@@ -1877,14 +1952,11 @@ label mas_reaction_candycane:
 
                 call mas_transition_to_emptydesk
                 $ monika_chr.remove_acs(mas_acs_center_quetzalplushie)
-                pause 3.0
+                $ renpy.pause(3.0, hard=True)
                 call mas_transition_from_emptydesk
 
             #Enable the gift
             $ candycane.enable()
-
-        #Restock
-        $ candycane.restock(9)
 
     $ mas_receivedGift("mas_reaction_candycane")
     $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candycane", "category")
