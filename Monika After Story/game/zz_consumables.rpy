@@ -176,7 +176,7 @@ init 5 python:
                     NOTE: Does NOT support midnight crossover times. If needed, requires a separate entry
                     NOTE: end_hour is exclusive
 
-                acs_map - map of MASAccessory objects for this consumable (for 'full' (100%-50%), 'half-done' (50%-10%), and 'done' (0%) states).
+                acs_map - map of MASAccessory objects for this consumable (for 'full' (0%-65%), 'half-done' (66%-90%), and 'done' (91%-100%) states).
                     The 'full' key must always be present.
 
                 split_list - list of split hours for prepping.
@@ -500,7 +500,7 @@ init 5 python:
             """
             return persistent._mas_consumable_map[self.consumable_id]["has_restock_warned"]
 
-        def use(self, amount=1, set_last_had=True):
+        def use(self, amount=1, set_last_had=True, set_acs=True):
             """
             Uses a serving of this consumable
 
@@ -508,6 +508,9 @@ init 5 python:
                 amount - amount of servings to use up
                     (Default: 1)
                 set_last_had - whether we update the last_had prop or not
+                    (Default: True)
+                set_acs - whether we update the acs for his cons or not
+                    NOTE: you'd probably need to do it manually if you don't call use
                     (Default: True)
             """
             servings_left = persistent._mas_consumable_map[self.consumable_id]["servings_left"]
@@ -519,6 +522,9 @@ init 5 python:
 
             if set_last_had:
                 self.last_had = datetime.datetime.now()
+
+            if set_acs:
+                self.acs = self.getFullAcs()
 
         def re_serve(self):
             """
@@ -722,29 +728,32 @@ init 5 python:
         def __getCurrentConsProgress(cls, _type):
             """
             Returns progress for the current consumable of _type
+            (0.0 - just started, 1.0 - finished)
 
             IN:
                 _type - the type of consumable to check
 
             OUT:
-                int, the percentage of progress of having the consumable,
+                float, the percentage of progress of having the consumable,
                 OR None if Monika isn't having anything
             """
-            curr_drink = cls.__getCurrentConsumable(_type)
-            if not curr_drink:
+            curr_cons = cls.__getCurrentConsumable(_type)
+            if not curr_cons:
                 return None
 
             _now = datetime.datetime.now()
-            start_time = curr_drink.last_had
+            start_time = curr_cons.last_had
             end_time = persistent._mas_current_consumable[_type]["consume_time"]
 
-            if _now <= end_time:
-                return 100
+            if end_time is None or start_time == end_time:
+                return 1.0
 
-            return int(round(float((end_time - start_time).total_seconds()) / (_now - end_time).total_seconds()))
+            progress = round(1.0 - float((end_time - _now).total_seconds()) / (end_time - start_time).total_seconds(), 2)
 
-        @staticmethod
-        def _getCurrentDrinkProgress():
+            return min(max(progress, 0.0), 1.0)
+
+        @classmethod
+        def _getCurrentDrinkProgress(cls):
             """
             Returns progress for the current drink
 
@@ -752,10 +761,10 @@ init 5 python:
                 int, the percentage of progress of having the drink,
                 OR None if Monika isn't drinking anything
             """
-            return cls.__getCurrentConsProgress(TYPE_DRINK)
+            return cls.__getCurrentConsProgress(mas_consumables.TYPE_DRINK)
 
-        @staticmethod
-        def _getCurrentFoodProgress():
+        @classmethod
+        def _getCurrentFoodProgress(cls):
             """
            Returns progress for the current food
 
@@ -763,7 +772,7 @@ init 5 python:
                 int, the percentage of progress of having the food,
                 OR None if Monika isn't eating anything
             """
-            return cls.__getCurrentConsProgress(TYPE_FOOD)
+            return cls.__getCurrentConsProgress(mas_consumables.TYPE_FOOD)
 
         @classmethod
         def validateConsAcs(cls):
@@ -771,23 +780,23 @@ init 5 python:
             Sets appropriate acs for the current consumables (both types)
             """
             for _type in mas_consumables.consumable_map.iterkeys():
-                curr_cons_progress = cls.__getCurrentConsProgress(_type)
-                if curr_cons_progress is not None:
-                    curr_cons = cls.__getCurrentConsumable(_type)
+                curr_cons = cls.__getCurrentConsumable(_type)
+                if curr_cons is not None:
+                    curr_cons_progress = cls.__getCurrentConsProgress(_type)
+                    if curr_cons_progress is not None:
+                        if 0.65 >= curr_cons_progress:
+                            appropriate_acs = curr_cons.getFullAcs()
 
-                    if 100 <= curr_cons_progress < 65:
-                        appropriate_acs = curr_cons.getFullAcs()
+                        elif 0.9 >= curr_cons_progress:
+                            appropriate_acs = curr_cons.getHalfdoneAcs()
 
-                    elif 65 <= curr_cons_progress < 10:
-                        appropriate_acs = curr_cons.getHalfdoneAcs()
+                        else:
+                            appropriate_acs = curr_cons.getDoneAcs()
 
-                    else:
-                        appropriate_acs = curr_cons.getDoneAcs()
-
-                    if curr_cons.acs is not appropriate_acs:
-                        monika_chr.remove_acs(curr_cons.acs)
-                        curr_cons.acs = appropriate_acs
-                        monika_chr.wear_acs(curr_cons.acs)
+                        if curr_cons.acs is not appropriate_acs:
+                            monika_chr.remove_acs(curr_cons.acs)
+                            curr_cons.acs = appropriate_acs
+                            monika_chr.wear_acs(curr_cons.acs)
 
         @staticmethod
         def _isStillCons(_type, _now=None):
@@ -1117,7 +1126,7 @@ init 5 python:
                 chance = random.randint(1, 100)
                 for day in range(days_absent):
                     if chance <= consumable.cons_chance:
-                        consumable.use(servings, set_last_had=False)
+                        consumable.use(servings, set_last_had=False, set_acs=False)
                         cons.last_had = now - datetime.timedelta(days=days_absent-day)
 
             consumables = MASConsumable._getEnabledConsumables()
@@ -1400,11 +1409,33 @@ init 6 python:
         disp_name="cinnamon bun",
         ex_props=mas_consumables.NON_PREP_PASTRY,
         start_end_tuple_list=[(5, 12), (16, 23)],
-        acs_map={mas_consumables.CONS_FULL: mas_acs_cinnamon_bun},
+        acs_map={
+            mas_consumables.CONS_FULL: mas_acs_cinnamon_bun,
+            mas_consumables.CONS_DONE: mas_acs_empty_plate
+        },
+        should_restock_warn=False,
+        late_entry_list=[11, 19],
+        max_re_serve=0,
+        max_stock_amount=6,
+        prep_low=None,
+        prep_high=None,
+        cons_high=30*60
+    )
+
+    MASConsumable(
+        consumable_id="cherry_cheesecake",
+        consumable_type=store.mas_consumables.TYPE_FOOD,
+        disp_name="cherry cheesecake",
+        ex_props=mas_consumables.NON_PREP_CAKE,
+        start_end_tuple_list=[(5, 12), (16, 23)],
+        acs_map={
+            mas_consumables.CONS_FULL: mas_acs_cherry_cheesecake,
+            mas_consumables.CONS_DONE: mas_acs_empty_plate
+        },
         should_restock_warn=False,
         late_entry_list=[11, 19],
         max_re_serve=1,
-        max_stock_amount=6,
+        max_stock_amount=8,
         prep_low=None,
         prep_high=None,
         cons_high=30*60
@@ -1581,6 +1612,13 @@ label mas_consumables_generic_get(consumable):
 label mas_consumables_generic_finish_having(consumable):
     #Some prep
     python:
+        # In case the acs wasn't updated, we do it here
+        cons_done_acs = consumable.getDoneAcs()
+        if consumable.acs is not cons_done_acs:
+            monika_chr.remove_acs(consumable.acs)
+            curr_cons.acs = cons_done_acs
+            monika_chr.wear_acs(consumable.acs)
+
         get_more = (
             consumable.shouldHave()
             and (consumable.prepable() or (not consumable.prepable() and consumable.hasServing()))
@@ -1650,6 +1688,11 @@ label mas_consumables_generic_finish_having(consumable):
             #Non-prepables are per refill, so they'll run out a bit faster
             if not consumable.prepable():
                 consumable.use()
+
+            #We still need to do this regarless (usually handled in use)
+            else:
+                consumable.last_had = datetime.datetime.now()
+                consumable.acs = consumable.getFullAcs()
 
         renpy.pause(4.0, hard=True)
 

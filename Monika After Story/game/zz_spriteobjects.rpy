@@ -1437,6 +1437,24 @@ init -1 python:
     )
     store.mas_sprites.init_acs(mas_acs_candycane)
 
+    ### CHERRY CHEESECAKE
+    ## cherry_cheesecake
+    # A slice of cherry cheesecake that sits on Monika's desk
+    # Thanks JMO
+    mas_acs_cherry_cheesecake = MASAccessory(
+        "cherry_cheesecake",
+        "cherry_cheesecake",
+        MASPoseMap(
+            default="0",
+            use_reg_for_l=True
+        ),
+        stay_on_start=True,
+        acs_type="plate",
+        mux_type=store.mas_sprites.DEF_MUX_LD,
+        keep_on_desk=True
+    )
+    store.mas_sprites.init_acs(mas_acs_cherry_cheesecake)
+
     ### Cupcake v1 (serious face)
     ## cupcake_smug
     # cupcake consumable

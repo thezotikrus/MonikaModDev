@@ -1072,7 +1072,7 @@ label mas_reaction_gift_generic:
 label mas_reaction_gift_test1:
     m "Thank you for gift test 1!"
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_gift_test1", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_gift_test1", "category", ""))
     return
 
 #init 5 python:
@@ -1081,7 +1081,7 @@ label mas_reaction_gift_test1:
 label mas_reaction_gift_test2:
     m "Thank you for gift test 2!"
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_gift_test2", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_gift_test2", "category", ""))
     return
 
 ## GENERIC SPRITE OBJECT JSONS
@@ -1329,7 +1329,7 @@ label mas_reaction_gift_coffee:
     #NOTE: This function already checks if we're maxed. So restocking while maxed is okay as it adds nothing
     $ coffee.restock()
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_gift_coffee", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_gift_coffee", "category", ""))
     return
 
 init 5 python:
@@ -1404,7 +1404,7 @@ label mas_reaction_hotchocolate:
     #NOTE: Like coffee, this runs checks to see if we should actually stock
     $ hotchoc.restock()
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_hotchocolate", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_hotchocolate", "category", ""))
     return
 
 init 5 python:
@@ -1485,7 +1485,7 @@ label mas_reaction_quetzal_plush:
     else:
         m 1rksdlb "You already gave me a quetzal plushie, [player]."
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_quetzal_plush", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_quetzal_plush", "category", ""))
     # derandom pets topic once given
     $ mas_hideEVL("monika_pets", "EVE", derandom=True)
     return
@@ -1547,7 +1547,7 @@ label mas_reaction_promisering:
             m 6ekbfa "I love you, [player]..."
             m 6dkbfu "More than anything else in this fleeting world~"
 
-            $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_promisering", "category"))
+            $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_promisering", "category", ""))
             return "love"
 
         else:
@@ -1583,13 +1583,11 @@ label mas_reaction_promisering:
         m 1rksdlb "[player]..."
         m 1rusdlb "You already gave me a ring!"
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_promisering", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_promisering", "category", ""))
     return
 
 init 5 python:
-    addReaction("mas_reaction_cupcake", "cupcake", is_good=True, exclude_on=["d25g"])
-    #Not sure why this was a bad gift. Dialogue doesn't reflect it being bad
-    #plus, Monika said she wants either Natsuki's cupcakes or the player's
+    addReaction("mas_reaction_cupcake", "cupcakes", is_good=True, exclude_on=["d25g"])
 
 label mas_reaction_cupcake:
     python:
@@ -1677,7 +1675,7 @@ label mas_reaction_cupcake:
 
             $ cupcake.enable()
 
-    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_cupcake", "category"))
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_cupcake", "category", ""))
     return
 
 # ending label for gift reactions, this just resets a thing
@@ -1752,7 +1750,7 @@ label mas_reaction_candy:
         show monika at t11
 
     $ mas_receivedGift("mas_reaction_candy")
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candy", "category")
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candy", "category", "")
     $ store.mas_filereacts.delete_file(gift_ev_cat)
     $ persistent._mas_filereacts_reacted_map.pop(gift_ev_cat, None)
     return
@@ -1813,7 +1811,7 @@ label mas_reaction_candycorn:
         show monika at t11
 
     $ mas_receivedGift("mas_reaction_candycorn") # while technically she didn't accept this one counts
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candycorn", "category")
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candycorn", "category", "")
     $ store.mas_filereacts.delete_file(gift_ev_cat)
     # allow multi gifts
     $ persistent._mas_filereacts_reacted_map.pop(gift_ev_cat, None)
@@ -1845,7 +1843,7 @@ label mas_reaction_fudge:
         m 3eksdla "...maybe later, okay?"
 
     $ mas_receivedGift("mas_reaction_fudge")
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_fudge", "category")
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_fudge", "category", "")
     $ store.mas_filereacts.delete_file(gift_ev_cat)
     # allow multi gifts
     $ persistent._mas_filereacts_reacted_map.pop(gift_ev_cat, None)
@@ -1903,7 +1901,7 @@ label mas_reaction_christmascookies:
             $ christmascookies.enable()
 
     $ mas_receivedGift("mas_reaction_christmascookies")
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_christmascookies", "category")
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_christmascookies", "category", "")
     $ store.mas_filereacts.delete_file(gift_ev_cat)
     #weird not to have her see the gift file that's in the characters folder.
     $ persistent._mas_filereacts_reacted_map.pop(gift_ev_cat, None)
@@ -1912,7 +1910,7 @@ label mas_reaction_christmascookies:
 #TODO: Remove the seasonal handling and just write alt dialogue for the not d25s path
 init 5 python:
     if store.mas_isD25Season():
-        addReaction("mas_reaction_candycane", "candycane", is_good=True, exclude_on=["d25g"])
+        addReaction("mas_reaction_candycane", "candycanes", is_good=True, exclude_on=["d25g"])
 
 label mas_reaction_candycane:
     python:
@@ -1963,7 +1961,7 @@ label mas_reaction_candycane:
             $ candycane.enable()
 
     $ mas_receivedGift("mas_reaction_candycane")
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candycane", "category")
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_candycane", "category", "")
     $ store.mas_filereacts.delete_file(gift_ev_cat)
     #weird not to have her see the gift file that's in the characters folder.
     $ persistent._mas_filereacts_reacted_map.pop(gift_ev_cat, None)
@@ -2316,7 +2314,7 @@ label _mas_reaction_ribbon_helper(label):
 
     # normal gift processing
     $ mas_receivedGift(label)
-    $ gift_ev_cat = mas_getEVLPropValue(label, "category")
+    $ gift_ev_cat = mas_getEVLPropValue(label, "category", "")
     # for regular ribbons
     $ store.mas_filereacts.delete_file(gift_ev_cat)
     #we have dlg for repeating ribbons, may as well have it used
@@ -2388,7 +2386,7 @@ default persistent._date_last_given_roses = None
 
 label mas_reaction_gift_roses:
     python:
-        gift_ev_cat = mas_getEVLPropValue("mas_reaction_gift_roses", "category")
+        gift_ev_cat = mas_getEVLPropValue("mas_reaction_gift_roses", "category", "")
 
         monika_chr.wear_acs(mas_acs_roses)
 
@@ -2469,7 +2467,7 @@ init 5 python:
 default persistent._given_chocolates_before = False
 
 label mas_reaction_gift_chocolates:
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_gift_chocolates", "category")
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_gift_chocolates", "category", "")
 
     if not persistent._mas_given_chocolates_before:
         $ persistent._mas_given_chocolates_before = True
@@ -2886,6 +2884,7 @@ label mas_reaction_cinnamon_buns:
                 call mas_transition_to_emptydesk
                 python:
                     monika_chr.remove_acs(mas_acs_quetzalplushie)
+                    cinnamon_bun.use()
                     cinnamon_bun.have(skip_leadin=True)
                     renpy.pause(3.0, hard=True)
                 call mas_transition_from_emptydesk("monika 1eua")
@@ -2921,6 +2920,78 @@ label mas_reaction_cinnamon_buns:
 
             $ cinnamon_bun.enable()
 
-    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_cinnamon_buns", "category")
-    $ store.mas_filereacts.delete_file(gift_ev_cat)
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_cinnamon_buns", "category", ""))
+    return
+
+init 5 python:
+    addReaction("mas_reaction_cherry_cheesecake", "cherry_cheesecake", is_good=True, exclude_on=["d25g"])
+
+label mas_reaction_cherry_cheesecake:
+    python:
+        mas_receivedGift("mas_reaction_cherry_cheesecake")
+        cherry_cheesecake = mas_getConsumable("cherry_cheesecake")
+        cherry_cheesecake.restock(servings=8)
+        curr_drink = MASConsumable._getCurrentDrink()
+        curr_food = MASConsumable._getCurrentFood()
+
+    if cherry_cheesecake.enabled():
+        $ mas_giftCapGainAff(0.5)
+
+        if cherry_cheesecake.hasServing():
+            m 1hua "Ehehe~"
+            m 1eub "I can't complain about more cherry cheesecake, it's delicious."
+
+        else:
+            m 1wub "Cherry cheesecake!"
+            m 3hub "It looks so yummy!"
+
+        if (
+            curr_food is None
+            and cherry_cheesecake.isConsTime()
+            and curr_drink is not None
+            and curr_drink.ex_props.get(mas_consumables.PROP_COMPATIBLE, False)
+        ):
+            m 3eua "Let me just get a plate so I can have some."
+
+            if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                $ mas_acs_quetzalplushie.keep_on_desk = False
+
+            call mas_transition_to_emptydesk
+            python:
+                monika_chr.remove_acs(mas_acs_quetzalplushie)
+                cherry_cheesecake.use()
+                cherry_cheesecake.have(skip_leadin=True)
+                renpy.pause(3.0, hard=True)
+            call mas_transition_from_emptydesk("monika 1hua")
+
+        m 1hua "Thanks, [player]~"
+
+    else:
+        $ mas_giftCapGainAff(3)
+
+        m 1wub "Cherry cheesecake!"
+        m 1sub "Oh it looks so delicious, [player]!"
+
+        if curr_food is None:
+            m 1eua "Let me just get a plate so I can have some."
+
+            if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                $ mas_acs_quetzalplushie.keep_on_desk = False
+
+            call mas_transition_to_emptydesk
+            python:
+                monika_chr.remove_acs(mas_acs_quetzalplushie)
+                cherry_cheesecake.use()
+                cherry_cheesecake.have(skip_leadin=True)
+                renpy.pause(3.0, hard=True)
+            call mas_transition_from_emptydesk("monika 1hub")
+
+            m "Thank you so much, [player]!"
+
+        else:
+            m 3eua "I'll be sure to have some later!"
+
+        $ cherry_cheesecake.enable()
+
+    $ store.mas_filereacts.delete_file(mas_getEVLPropValue("mas_reaction_cherry_cheesecake", "category", ""))
     return
