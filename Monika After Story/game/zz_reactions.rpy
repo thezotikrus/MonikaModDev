@@ -1592,11 +1592,12 @@ init 5 python:
     #plus, Monika said she wants either Natsuki's cupcakes or the player's
 
 label mas_reaction_cupcake:
-    $ mas_receivedGift("mas_reaction_cupcake")
-    $ cupcake = mas_getConsumable("cupcake")
-    $ cupcake.restock(servings=3)
-    $ curr_drink = MASConsumable._getCurrentDrink()
-    $ curr_food = MASConsumable._getCurrentFood()
+    python:
+        mas_receivedGift("mas_reaction_cupcake")
+        cupcake = mas_getConsumable("cupcake")
+        cupcake.restock(servings=6)
+        curr_drink = MASConsumable._getCurrentDrink()
+        curr_food = MASConsumable._getCurrentFood()
 
     if cupcake.isMaxedStock():
         m 1etc "Oh, more cupcakes?"
@@ -1612,6 +1613,7 @@ label mas_reaction_cupcake:
                 $ cupcake.acs = cupcake.acs_map[mas_consumables.CONS_FULL]
 
             $ mas_giftCapGainAff(0.5)
+
             m 1wub "Oh, you got me more cupcakes!"
 
             if (
@@ -1854,10 +1856,11 @@ init 5 python:
         addReaction("mas_reaction_christmascookies", "christmascookies", is_good=True, exclude_on=["d25g"])
 
 label mas_reaction_christmascookies:
-    $ christmascookies = mas_getConsumable("christmascookies")
-    $ christmascookies.restock(10)
-    $ mas_giftCapGainAff(1)
-    $ is_having_food = bool(MASConsumable._getCurrentFood())
+    python:
+        christmascookies = mas_getConsumable("christmascookies")
+        christmascookies.restock(10)
+        mas_giftCapGainAff(1)
+        is_having_food = bool(MASConsumable._getCurrentFood())
 
     if christmascookies.isMaxedStock():
         m 3wuo "...even more Christmas cookies?"
@@ -1912,10 +1915,11 @@ init 5 python:
         addReaction("mas_reaction_candycane", "candycane", is_good=True, exclude_on=["d25g"])
 
 label mas_reaction_candycane:
-    $ candycane = mas_getConsumable("candycane")
-    $ candycane.restock(9)
-    $ mas_giftCapGainAff(1)
-    $ is_having_food = bool(MASConsumable._getCurrentFood())
+    python:
+        candycane = mas_getConsumable("candycane")
+        candycane.restock(9)
+        mas_giftCapGainAff(1)
+        is_having_food = bool(MASConsumable._getCurrentFood())
 
     if candycane.isMaxedStock():
         m 1eksdla "[player], I think I have enough candy canes for now."
@@ -2838,4 +2842,85 @@ label mas_reaction_gift_clothes_mocca_bun_blackandwhitestripedpullover:
     $ mas_finishSpriteObjInfo(sprite_data)
     if giftname is not None:
         $ store.mas_filereacts.delete_file(giftname)
+    return
+
+init 5 python:
+    addReaction("mas_reaction_cinnamon_buns", "cinnamon_buns", is_good=True, exclude_on=["d25g"])
+
+label mas_reaction_cinnamon_buns:
+    python:
+        mas_receivedGift("mas_reaction_cinnamon_buns")
+        cinnamon_bun = mas_getConsumable("cinnamon_bun")
+        cinnamon_bun.restock(servings=6)
+        curr_drink = MASConsumable._getCurrentDrink()
+        curr_food = MASConsumable._getCurrentFood()
+
+    if cinnamon_bun.isMaxedStock():
+        m 1rksdla "Uh [player]...{w=0.3}{nw}"
+        extend 1eksdla "I still haven't eaten the buns you got me before."
+        m 3eksdla "You can give me more after I finish these, okay?"
+
+    else:
+        if cinnamon_bun.enabled():
+            $ mas_giftCapGainAff(0.5)
+
+            if cinnamon_bun.hasServing():
+                m 1eub "More buns!"
+                m 1hub "I just love them! Ahaha~"
+
+            else:
+                m 1wub "Cinnamon buns!"
+                m 1sub "These have such a tasty flavor!"
+
+            if (
+                curr_food is None
+                and cinnamon_bun.isConsTime()
+                and curr_drink is not None
+                and curr_drink.ex_props.get(mas_consumables.PROP_COMPATIBLE, False)
+            ):
+                m 3eua "Let me just get a plate so I can have one."
+
+                if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                    $ mas_acs_quetzalplushie.keep_on_desk = False
+
+                call mas_transition_to_emptydesk
+                python:
+                    monika_chr.remove_acs(mas_acs_quetzalplushie)
+                    cinnamon_bun.have(skip_leadin=True)
+                    renpy.pause(3.0, hard=True)
+                call mas_transition_from_emptydesk("monika 1eua")
+
+            m 1eua "Thanks, [player]~"
+
+        else:
+            $ mas_giftCapGainAff(3)
+
+            m 1wub "Oh cinnamon buns! {w=0.2}{nw}"
+            extend 1sub "They are so flavorsome!"
+            m 1hua "Thanks [player], I just love them! {w=0.2}{nw}"
+            extend 3eua "Especially along with a cup of coffee or tea."
+
+            if curr_food is None:
+                m 1eua "Let me just get a plate so I can have one."
+
+                if monika_chr.is_wearing_acs(mas_acs_quetzalplushie):
+                    $ mas_acs_quetzalplushie.keep_on_desk = False
+
+                call mas_transition_to_emptydesk
+                python:
+                    monika_chr.remove_acs(mas_acs_quetzalplushie)
+                    cinnamon_bun.use()
+                    cinnamon_bun.have(skip_leadin=True)
+                    renpy.pause(3.0, hard=True)
+                call mas_transition_from_emptydesk("monika 1hub")
+
+                m "Thank you so much, [player]!"
+
+            else:
+                m 3eua "I'll be sure to have some later!"
+
+            $ cinnamon_bun.enable()
+
+    $ gift_ev_cat = mas_getEVLPropValue("mas_reaction_cinnamon_buns", "category")
+    $ store.mas_filereacts.delete_file(gift_ev_cat)
     return

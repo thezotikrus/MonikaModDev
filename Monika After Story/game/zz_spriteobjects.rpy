@@ -1433,7 +1433,7 @@ init -1 python:
         stay_on_start=True,
         acs_type="plate",
         mux_type=store.mas_sprites.DEF_MUX_LD,
-        keep_on_desk=False
+        keep_on_desk=True
     )
     store.mas_sprites.init_acs(mas_acs_candycane)
 
@@ -1451,7 +1451,7 @@ init -1 python:
         stay_on_start=True,
         acs_type="plate",
         mux_type=store.mas_sprites.DEF_MUX_LD,
-        keep_on_desk=False
+        keep_on_desk=True
     )
     store.mas_sprites.init_acs(mas_acs_cupcake_smug)
 
@@ -1469,7 +1469,7 @@ init -1 python:
         stay_on_start=True,
         acs_type="plate",
         mux_type=store.mas_sprites.DEF_MUX_LD,
-        keep_on_desk=False
+        keep_on_desk=True
     )
     store.mas_sprites.init_acs(mas_acs_cupcake_owo)
 
@@ -1487,7 +1487,7 @@ init -1 python:
         stay_on_start=True,
         acs_type="plate",
         mux_type=store.mas_sprites.DEF_MUX_LD,
-        keep_on_desk=False
+        keep_on_desk=True
     )
     store.mas_sprites.init_acs(mas_acs_cupcake_uwu)
 
@@ -1505,9 +1505,27 @@ init -1 python:
         stay_on_start=True,
         acs_type="plate",
         mux_type=store.mas_sprites.DEF_MUX_LD,
-        keep_on_desk=False
+        keep_on_desk=True
     )
     store.mas_sprites.init_acs(mas_acs_christmascookies)
+
+    ### CINNAMON BUN
+    ## cinnamon bun
+    # A cinnamon roll that sits on Monika's desk
+    # Thanks JMO
+    mas_acs_cinnamon_bun = MASAccessory(
+        "cinnamon_bun",
+        "cinnamon_bun",
+        MASPoseMap(
+            default="0",
+            use_reg_for_l=True
+        ),
+        stay_on_start=True,
+        acs_type="plate",
+        mux_type=store.mas_sprites.DEF_MUX_LD,
+        keep_on_desk=True
+    )
+    store.mas_sprites.init_acs(mas_acs_cinnamon_bun)
 
     ### COFFEE MUG
     ## mug

@@ -1365,11 +1365,12 @@ init 6 python:
         disp_name="Christmas cookie",
         ex_props={
             mas_consumables.PROP_OBJ_REF: "plate",
-            mas_consumables.PROP_PLUR: True
+            mas_consumables.PROP_PLUR: True,
+            mas_consumables.PROP_COMPATIBLE: True
         },
         start_end_tuple_list=[(5, 12), (16, 23)],
         acs_map={mas_consumables.CONS_FULL: mas_acs_christmascookies},
-        late_entry_list=[11, 22],
+        late_entry_list=[11, 19],
         max_re_serve=2,
         should_restock_warn=False,
         max_stock_amount=20,
@@ -1385,12 +1386,28 @@ init 6 python:
         start_end_tuple_list=[(5, 12), (16, 23)],
         # Choose one at random on startup
         acs_map={mas_consumables.CONS_FULL: random.choice((mas_acs_cupcake_smug, mas_acs_cupcake_owo, mas_acs_cupcake_uwu))},
-        late_entry_list=[11, 22],
+        late_entry_list=[11, 19],
         max_re_serve=1,
         should_restock_warn=False,
         max_stock_amount=6,
         prep_low=None,
-        cons_high=30*60 #30 minute max
+        cons_high=30*60
+    )
+
+    MASConsumable(
+        consumable_id="cinnamon_bun",
+        consumable_type=store.mas_consumables.TYPE_FOOD,
+        disp_name="cinnamon bun",
+        ex_props=mas_consumables.NON_PREP_PASTRY,
+        start_end_tuple_list=[(5, 12), (16, 23)],
+        acs_map={mas_consumables.CONS_FULL: mas_acs_cinnamon_bun},
+        should_restock_warn=False,
+        late_entry_list=[11, 19],
+        max_re_serve=1,
+        max_stock_amount=6,
+        prep_low=None,
+        prep_high=None,
+        cons_high=30*60
     )
 
 #START: Finished brewing/drinking evs
