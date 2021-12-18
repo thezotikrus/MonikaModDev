@@ -299,7 +299,7 @@ init python in mas_windowutils:
             active_winname_prop = active_winobj.get_full_property(NET_WM_NAME, 0)
 
             if active_winname_prop is not None:
-                active_winname = unicode(active_winname_prop.value, encoding = "utf-8")    
+                active_winname = unicode(active_winname_prop.value, encoding="utf-8")
                 return active_winname.replace("\n", "")
 
             else:
@@ -628,7 +628,9 @@ init python:
 
         IN:
             title - Notification heading text
-            body - A list of items which would go in the notif body (one is picked at random)
+            body - one of:
+                a list of strings which would go in the notif body (one is picked at random)
+                a single string to use as the notif body
             group - Notification group (for checking if we have this enabled)
                 (Default: None)
             skip_checks - Whether or not we skips checks
@@ -653,14 +655,17 @@ init python:
             skip_checks
             or (
                 mas_windowreacts.can_show_notifs
-                and ((renpy.windows and not mas_isFocused()) or not renpy.windows)
+                and (not renpy.windows or not mas_isFocused())
                 and mas_notifsEnabledForGroup(group)
             )
         ):
+            if not isinstance(body, basestring):
+                body = random.choice(body)
+
             #Now we make the notif
             notif_success = mas_windowutils._tryShowNotif(
                 renpy.substitute(title),
-                renpy.substitute(renpy.random.choice(body))
+                renpy.substitute(body)
             )
 
             #Play the notif sound if we have that enabled and notif was successful
