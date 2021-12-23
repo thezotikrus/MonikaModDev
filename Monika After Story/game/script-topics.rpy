@@ -2362,33 +2362,71 @@ label monika_rain_holdme:
         m 1dsc "Sorry..."
     return
 
-# Some constants to describe the behaviour
-init python:
-    MAS_HOLDME_NO_LULLABY = 0
-    MAS_HOLDME_PLAY_LULLABY = 1
-    MAS_HOLDME_QUEUE_LULLABY_IF_NO_MUSIC = 2
+# Special namespace dedicated for the event
+# Because we have a lot of globals and a function
+init python in mas_holdme:
+    import datetime
+    import random
 
-label monika_holdme_prep(lullaby=MAS_HOLDME_QUEUE_LULLABY_IF_NO_MUSIC, stop_music=False, disable_music_menu=False):
-    python:
-        holdme_events = list()
+    import store
+    from store import persistent
+
+    # Some constants to describe the behaviour
+    HOLDME_NO_LULLABY = 0
+    HOLDME_PLAY_LULLABY = 1
+    HOLDME_QUEUE_LULLABY_IF_NO_MUSIC = 2
+
+    holdme_disp = None
+    holdme_events = None
+    holdme_sleep_timer = None
+    holdme_wakeup_timer = None
+    holdme_start_time = None
+    holdme_elapsed_time = None
+
+    def _holdme_play_lullaby():
+        """
+        Local method to play the lullaby. Ensures we have no music playing before starting it.
+        """
+        if (
+            # The user has not canceled the lullaby
+            store.songs.current_track == store.songs.FP_MONIKA_LULLABY
+            # The user has not started another track
+            and not renpy.music.is_playing(channel="music")
+        ):
+            store.play_song(store.songs.FP_MONIKA_LULLABY, fadein=5.0)
+
+# Global constants for convenience
+init python:
+    MAS_HOLDME_NO_LULLABY = mas_holdme.HOLDME_NO_LULLABY
+    MAS_HOLDME_PLAY_LULLABY = mas_holdme.HOLDME_PLAY_LULLABY
+    MAS_HOLDME_QUEUE_LULLABY_IF_NO_MUSIC = mas_holdme.HOLDME_QUEUE_LULLABY_IF_NO_MUSIC
+
+label monika_holdme_prep(
+    lullaby=mas_holdme.HOLDME_QUEUE_LULLABY_IF_NO_MUSIC,
+    stop_music=False,
+    disable_music_menu=False
+):
+    python hide:
+        mas_holdme.holdme_disp = PauseDisplayableWithEvents()
+        mas_holdme.holdme_events = list()
 
         if mas_timePastSince(persistent._mas_last_hold_dt, datetime.timedelta(hours=12)):
-            _minutes = random.randint(25, 40)
+            _sleep_timer_range = (25, 40)
         else:
-            _minutes = random.randint(35, 50)
-        holdme_sleep_timer = datetime.timedelta(minutes=_minutes)
+            _sleep_timer_range = (35, 50)
+        mas_holdme.holdme_sleep_timer = datetime.timedelta(minutes=random.randint(*_sleep_timer_range))
 
-        def __holdme_play_lullaby():
-            """
-            Local method to play the lullaby. Ensures we have no music playing before starting it.
-            """
-            if (
-                # The user has not canceled the lullaby
-                store.songs.current_track == store.songs.FP_MONIKA_LULLABY
-                # The user has not started another track
-                and not renpy.music.is_playing(channel="music")
-            ):
-                store.play_song(store.songs.FP_MONIKA_LULLABY, fadein=5.0)
+        curr_hour = datetime.datetime.now().hour
+        # From 8 PM to 6 AM
+        # TODO: TC-O
+        if curr_hour >= 20 or curr_hour <= 6:
+            _wakup_timer_range = (7*60, 11*60)
+
+        else:
+            _wakup_timer_range = (45, 3*60)
+
+        mas_holdme.holdme_wakeup_timer = datetime.timedelta(minutes=random.randint(*_wakup_timer_range))
+        mas_holdme.holdme_wakeup_timer = datetime.timedelta(minutes=0.1)
 
         # Stop the music
         if stop_music:
@@ -2397,10 +2435,10 @@ label monika_holdme_prep(lullaby=MAS_HOLDME_QUEUE_LULLABY_IF_NO_MUSIC, stop_musi
         # Queue the lullaby
         if lullaby == MAS_HOLDME_QUEUE_LULLABY_IF_NO_MUSIC:
             if songs.current_track is None:
-                holdme_events.append(
+                mas_holdme.holdme_events.append(
                     PauseDisplayableEvent(
-                        holdme_sleep_timer,
-                        __holdme_play_lullaby
+                        mas_holdme.holdme_sleep_timer,
+                        mas_holdme._holdme_play_lullaby
                     )
                 )
                 # This doesn't interfere with the timer
@@ -2409,49 +2447,166 @@ label monika_holdme_prep(lullaby=MAS_HOLDME_QUEUE_LULLABY_IF_NO_MUSIC, stop_musi
                 songs.selected_track = songs.FP_MONIKA_LULLABY
 
         # Just play the lullaby
-        elif lullaby == MAS_HOLDME_PLAY_LULLABY:
-            play_song(store.songs.FP_MONIKA_LULLABY)
+        elif lullaby == songs.MAS_HOLDME_PLAY_LULLABY:
+            play_song(songs.FP_MONIKA_LULLABY)
+
+        mas_holdme.holdme_events.append(
+            PauseDisplayableEvent(
+                mas_holdme.holdme_wakeup_timer,
+                mas_holdme.holdme_disp.stop
+            )
+        )
 
         # Hide ui and disable hotkeys
         HKBHideButtons()
-        store.songs.enabled = not disable_music_menu
+        songs.enabled = not disable_music_menu
 
     return
 
 label monika_holdme_start:
     show monika 6dubsa with dissolve_monika
     window hide
-    python:
+
+    python in mas_holdme:
         # Start the timer
-        start_time = datetime.datetime.now()
+        holdme_start_time = datetime.datetime.now()
 
-        holdme_disp = PauseDisplayableWithEvents(events=holdme_events)
+        holdme_disp.set_events(holdme_events)
         holdme_disp.start()
-
-        del holdme_events
-        del holdme_disp
 
         # Renable ui and hotkeys
         store.songs.enabled = True
-        HKBShowButtons()
+        store.HKBShowButtons()
+
     window auto
     return
 
 label monika_holdme_reactions:
-    $ elapsed_time = datetime.datetime.now() - start_time
-    $ store.mas_history._pm_holdme_adj_times(elapsed_time)
+    python:
+        mas_holdme.holdme_elapsed_time = datetime.datetime.now() - mas_holdme.holdme_start_time
+        mas_history._pm_holdme_adj_times(mas_holdme.holdme_elapsed_time)
 
-    # Reset these vars if needed
-    if elapsed_time <= holdme_sleep_timer:
-        if songs.current_track == songs.FP_MONIKA_LULLABY:
-            $ songs.current_track = songs.FP_NO_SONG
-        if songs.selected_track == songs.FP_MONIKA_LULLABY:
-            $ songs.selected_track = songs.FP_NO_SONG
+        # Reset these vars if needed
+        if mas_holdme.holdme_elapsed_time <= mas_holdme.holdme_sleep_timer:
+            if songs.current_track == songs.FP_MONIKA_LULLABY:
+                songs.current_track = songs.FP_NO_SONG
+            if songs.selected_track == songs.FP_MONIKA_LULLABY:
+                songs.selected_track = songs.FP_NO_SONG
 
-    if elapsed_time > holdme_sleep_timer:
-        call monika_holdme_long
+    if mas_holdme.holdme_elapsed_time > mas_holdme.holdme_wakeup_timer:
+        call monika_holdme_reaction_wakeup
 
-    elif elapsed_time > datetime.timedelta(minutes=10):
+    elif mas_holdme.holdme_elapsed_time > mas_holdme.holdme_sleep_timer:
+        call monika_holdme_reaction_long
+
+    else:
+        call monika_holdme_reaction_other
+
+    return
+
+label monika_holdme_reaction_wakeup:
+    m "...{w=5}{nw}"
+    m "Hmmm...{w=5}{nw}"
+    m "Oh! {w=0.3}{nw}"
+    extend "I didn't notice how I fell asleep.{w=1}{nw}"
+    m "...{w=1}{nw}"
+
+    if not mas_canCheckActiveWindow() or not mas_isFocused():
+        $ mas_display_notif(m_name, "[player], are you there?")
+
+    $ question_time = time.time()
+    m "[player], are you there?{nw}"
+    $ _history_list.pop()
+    show screen mas_background_timed_jump(45, "monika_holdme_reaction_wakeup_no_response")
+    menu:
+        m "[player], are you there?{fast}"
+
+        "I'm here, [m_name].":
+            hide screen mas_background_timed_jump
+
+            $ slow_response = time.time() - question_time > 10
+
+            if slow_response:
+                m "Ehehe, took you a while to answer."
+                $ question = "Were you also sleeping, or were you just away?"
+
+            else:
+                m "Oh, I wasn't expecting you to answer so quckly!"
+                $ question = "Did you sleep?"
+
+    # If we're here, the player's answered to Monika.
+    # This is more to give the illusion of choice, but we could save/use this
+    # data somewhere if we wanted.
+    # TODO: TC-O
+    m "[question]{nw}"
+    $ _history_list.pop()
+    menu:
+        m "[question]{fast}"
+
+        "I was sleeping." if slow_response:
+            m "Thought so."
+            m "I hope you enjoyed it as much as I did~"
+
+        "I was away." if slow_response:
+            m "I see, "
+            extend "I hope we still were able to spend some time together."
+
+        "Neither." if slow_response:
+            m "I see."
+
+        "Yes." if not slow_response:
+            m "That's nice!"
+            m "I hope you enjoyed it as much as I did~"
+
+        "No." if not slow_response:
+            m "Aww, {w=0.2}{nw}"
+            extend "but at least we were together."
+
+    m "Anyway, that was nice while it lasted."
+
+    if random.random() > 0.5:
+        m "I think I even had a dream{nw}"
+
+        if random.random() > 0.9:
+            extend " about us..."
+
+        else:
+            extend "..."
+
+    else:
+        m "I don't think there's anything better than being in your hands~"
+
+    if mas_current_background == mas_background_def:
+        m "Although, the chair could be more comfortable..."
+
+    elif mas_isMoniLove() and random.random() > 0.7:
+        m "Although, I think we{w=0.05}{nw}"
+        $ _history_list.pop()
+        m "Although, I think {fast}I should've used my bed."
+
+    else:
+        m "And you know, {w=0.2}{nw}"
+        extend "this chair is actually more comfortable than it looks."
+
+    m "Ahaha~"
+
+    if mas_globals.time_of_day_4state == "night" and mas_isMoniEnamored(higher=True):
+        m "So, {w=0.3}do we have any plans for this {i}night{/i}?~"
+
+    else:
+        m "So, do we have any plans for this [mas_globals.time_of_day_3state]?"
+
+    $ del question, slow_response, question_time
+
+    return
+
+label monika_holdme_reaction_wakeup_no_response:
+    m "I guess [heis] still sleeping.{w=5}{nw}"
+    # idle mode on + force exp
+    return
+
+label monika_holdme_reaction_other:
+    if mas_holdme.holdme_elapsed_time > datetime.timedelta(minutes=15):
         if mas_isMoniLove():
             m 6dubsa "..."
             m 6tubsa "Mm...{w=1}hm?"
@@ -2495,7 +2650,7 @@ label monika_holdme_reactions:
             m 2ekbfa "Too much longer and I might have fallen asleep..."
             m 1hubfa "I feel so nice and warm now after that~"
 
-    elif elapsed_time > datetime.timedelta(minutes=2):
+    elif mas_holdme.holdme_elapsed_time > datetime.timedelta(minutes=2):
         if mas_isMoniLove():
             m 6eud "Oh?"
             m 1hksdlb "Ah..."
@@ -2531,7 +2686,7 @@ label monika_holdme_reactions:
             m 1ekbsa "As long as you're satisfied..."
             m 1hubfa "I'm happy just sitting with you now."
 
-    elif elapsed_time > datetime.timedelta(seconds=30):
+    elif mas_holdme.holdme_elapsed_time > datetime.timedelta(seconds=30):
         if mas_isMoniLove():
             m 1eub "Ah~"
             m 1hua "I feel much better now!"
@@ -2656,9 +2811,10 @@ label monika_holdme_reactions:
         #happy
         else:
             m 1hua "That was a bit short, but still nice~"
+
     return
 
-label monika_holdme_long:
+label monika_holdme_reaction_long:
     window show
     m "..."
     window auto
@@ -2741,8 +2897,13 @@ label monika_holdme_long:
                 m "..."
 
             call monika_holdme_start
-            jump monika_holdme_long
+            jump monika_holdme_reaction_long
     return
+
+# This label's been deprecated
+label monika_holdme_long:
+    call monika_holdme_reaction_long
+    return _return
 
 # when did we last hold monika
 # TODO: deprecate _mas_last_hold
