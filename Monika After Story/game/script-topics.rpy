@@ -2463,20 +2463,23 @@ label monika_holdme_prep(
 
     return
 
-label monika_holdme_start:
+label monika_holdme_start(set_events=True):
     show monika 6dubsa with dissolve_monika
     window hide
 
-    python in mas_holdme:
+    python:
         # Start the timer
-        holdme_start_time = datetime.datetime.now()
+        mas_holdme.holdme_start_time = datetime.datetime.now()
 
-        holdme_disp.set_events(holdme_events)
-        holdme_disp.start()
+        # Sometimes we want to continue with the old events, in this case
+        # we don't reset them here
+        if set_events:
+            mas_holdme.holdme_disp.set_events(mas_holdme.holdme_events)
+        mas_holdme.holdme_disp.start(set_end_datetimes=set_events)
 
         # Renable ui and hotkeys
-        store.songs.enabled = True
-        store.HKBShowButtons()
+        songs.enabled = True
+        HKBShowButtons()
 
     window auto
     return
@@ -2497,7 +2500,7 @@ label monika_holdme_reactions:
         call monika_holdme_reaction_wakeup
 
     elif mas_holdme.holdme_elapsed_time > mas_holdme.holdme_sleep_timer:
-        call monika_holdme_reaction_long
+        call monika_holdme_reaction_sleep
 
     else:
         call monika_holdme_reaction_other
@@ -2814,7 +2817,7 @@ label monika_holdme_reaction_other:
 
     return
 
-label monika_holdme_reaction_long:
+label monika_holdme_reaction_sleep:
     window show
     m "..."
     window auto
@@ -2897,12 +2900,12 @@ label monika_holdme_reaction_long:
                 m "..."
 
             call monika_holdme_start
-            jump monika_holdme_reaction_long
+            jump monika_holdme_reaction_sleep
     return
 
 # This label's been deprecated
 label monika_holdme_long:
-    call monika_holdme_reaction_long
+    call monika_holdme_reaction_sleep
     return _return
 
 # when did we last hold monika

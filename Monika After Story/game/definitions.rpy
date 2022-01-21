@@ -3854,12 +3854,18 @@ init 25 python:
             for ev in self.__remaining_events:
                 ev.end_datetime = None
 
-        def start(self):
+        def start(self, set_end_datetimes=True):
             """
             Starts this displayable
+
+            IN:
+                set_end_datetimes - updates end_datetime of the events
+                    using current time
+                    (Default: True)
             """
             self.__should_enable_afm = store._preferences.afm_enable
-            self.__set_end_datetimes()
+            if set_end_datetimes:
+                self.__set_end_datetimes()
             ui.implicit_add(self)
             ui.interact()
 
