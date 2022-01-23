@@ -2497,13 +2497,13 @@ label monika_holdme_reactions:
                 songs.selected_track = songs.FP_NO_SONG
 
     if mas_holdme.holdme_elapsed_time > mas_holdme.holdme_wakeup_timer:
-        call monika_holdme_reaction_wakeup
+        jump monika_holdme_reaction_wakeup
 
     elif mas_holdme.holdme_elapsed_time > mas_holdme.holdme_sleep_timer:
-        call monika_holdme_reaction_sleep
+        jump monika_holdme_reaction_sleep
 
     else:
-        call monika_holdme_reaction_other
+        jump monika_holdme_reaction_other
 
     return
 
@@ -2744,7 +2744,7 @@ label monika_holdme_reaction_other:
                         call monika_holdme_prep
                         m 1hub "You're so sweet, [player]~"
                         call monika_holdme_start
-                        call monika_holdme_reactions
+                        jump monika_holdme_reactions
 
                     "No.":
                         if random.randint(0, _chance) == 0:
@@ -2759,7 +2759,7 @@ label monika_holdme_reaction_other:
                                     call monika_holdme_prep
                                     m 2ekbsb "Thanks, [player]~"
                                     call monika_holdme_start
-                                    call monika_holdme_reactions
+                                    jump monika_holdme_reactions
 
                                 "No.":
                                     m 2hksdlb "Alright, fine."
@@ -2794,7 +2794,7 @@ label monika_holdme_reaction_other:
                         call monika_holdme_prep
                         m 2ekbfb "Thanks, [player]~"
                         call monika_holdme_start
-                        call monika_holdme_reactions
+                        jump monika_holdme_reactions
 
                     "No.":
                         m 2ekc "Aw."
@@ -2900,13 +2900,13 @@ label monika_holdme_reaction_sleep:
                 m "..."
 
             call monika_holdme_start
-            jump monika_holdme_reaction_sleep
+            jump monika_holdme_reactions
     return
 
 # This label's been deprecated
 label monika_holdme_long:
-    call monika_holdme_reaction_sleep
-    return _return
+    jump monika_holdme_reaction_sleep
+    return
 
 # when did we last hold monika
 # TODO: deprecate _mas_last_hold
