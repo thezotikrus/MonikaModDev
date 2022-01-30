@@ -2426,7 +2426,6 @@ label monika_holdme_prep(
             _wakup_timer_range = (45, 3*60)
 
         mas_holdme.holdme_wakeup_timer = datetime.timedelta(minutes=random.randint(*_wakup_timer_range))
-        mas_holdme.holdme_wakeup_timer = datetime.timedelta(minutes=0.1)
 
         # Stop the music
         if stop_music:
@@ -2939,7 +2938,7 @@ label monika_holdme_reaction_sleep:
             else:
                 m "..."
 
-            call monika_holdme_start
+            call monika_holdme_start(set_events=False)
             jump monika_holdme_reactions
     return
 
