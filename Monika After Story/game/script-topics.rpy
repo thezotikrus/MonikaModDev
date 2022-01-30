@@ -2508,17 +2508,27 @@ label monika_holdme_reactions:
     return
 
 label monika_holdme_reaction_wakeup:
-    m "...{w=5}{nw}"
-    m "Hmmm...{w=5}{nw}"
-    m "Oh! {w=0.3}{nw}"
-    extend "I didn't notice how I fell asleep.{w=1}{nw}"
+    m 6dubsa "...{w=5}{nw}"
+    m 6dubsu "Hmmm...{w=5}{nw}"
+    show monika 6tubsu with dissolve_monika
+    pause 2.0
+    m 6wubso "Oh!{w=1}{nw}"
+
+    # To give an effect of different mood
+    if renpy.random() > 0.5:
+        show monika 6gsbsb with dissolve_monika
+    else:
+        show monika 6hkbsb with dissolve_monika
+
+    m "I didn't notice how I fell asleep.{w=1}{nw}"
+    show monika 5dsa with dissolve_monika
     m "...{w=1}{nw}"
 
     if not mas_canCheckActiveWindow() or not mas_isFocused():
         $ mas_display_notif(m_name, "[player], are you there?")
 
     $ question_time = time.time()
-    m "[player], are you there?{nw}"
+    m 5esa "[player], are you there?{nw}"
     $ _history_list.pop()
     show screen mas_background_timed_jump(45, "monika_holdme_reaction_wakeup_no_response")
     menu:
@@ -2530,82 +2540,88 @@ label monika_holdme_reaction_wakeup:
             $ slow_response = time.time() - question_time > 10
 
             if slow_response:
-                m "Ehehe, took you a while to answer."
+                m 5hua "Ehehe, took you a while to answer."
                 $ question = "Were you also sleeping, or were you just away?"
 
             else:
-                m "Oh, I wasn't expecting you to answer so quckly!"
+                m 5wud "Oh, I wasn't expecting you to answer so quckly!"
                 $ question = "Did you sleep?"
 
     # If we're here, the player's answered to Monika.
     # This is more to give the illusion of choice, but we could save/use this
     # data somewhere if we wanted.
     # TODO: TC-O
+    show monika 2eua with dissolve_monika
     m "[question]{nw}"
     $ _history_list.pop()
     menu:
         m "[question]{fast}"
 
         "I was sleeping." if slow_response:
-            m "Thought so."
-            m "I hope you enjoyed it as much as I did~"
+            m 2hua "Thought so."
+            m 2eub "I hope you enjoyed it as much as I did~"
 
         "I was away." if slow_response:
-            m "I see, "
-            extend "I hope we still were able to spend some time together."
+            m 2eud "I see, "
+            extend 3eua "I hope we still were able to spend some time together."
 
         "Neither." if slow_response:
             m "I see."
 
         "Yes." if not slow_response:
-            m "That's nice!"
-            m "I hope you enjoyed it as much as I did~"
+            m 2hua "That's nice!"
+            m 3eub "I hope you enjoyed it as much as I did~"
 
         "No." if not slow_response:
-            m "Aww, {w=0.2}{nw}"
-            extend "but at least we were together."
+            m 1euc "Aww, {w=0.2}{nw}"
+            extend 3fua "but at least we were together."
 
-    m "Anyway, that was nice while it lasted."
+    m 1dubla "Anyway, that was nice while it lasted."
 
     if random.random() > 0.5:
-        m "I think I even had a dream{nw}"
+        m 1dublb "I think I even had a dream{nw}"
 
-        if random.random() > 0.9:
-            extend " about us..."
+        if random.random() > 0.5:
+            extend 1dubsa " about us..."
 
         else:
-            extend "..."
+            extend 1dubsa "..."
 
     else:
-        m "I don't think there's anything better than being in your hands~"
+        m 1eubsu "I don't think there's anything better than being in your hands~"
 
     if mas_current_background == mas_background_def:
-        m "Although, the chair could be more comfortable..."
+        m 1rtc "Although, the chair could be more comfortable..."
 
     elif mas_isMoniLove() and random.random() > 0.7:
-        m "Although, I think we{w=0.05}{nw}"
+        m 1gsbsb "Although, I think we{w=0.05}{nw}"
         $ _history_list.pop()
         m "Although, I think {fast}I should've used my bed."
 
     else:
-        m "And you know, {w=0.2}{nw}"
-        extend "this chair is actually more comfortable than it looks."
+        m 1euc "And you know, {w=0.2}{nw}"
+        extend 3hub "this chair is actually more comfortable than it looks."
 
-    m "Ahaha~"
+    m 2hub "Ahaha~"
 
     if mas_globals.time_of_day_4state == "night" and mas_isMoniEnamored(higher=True):
-        m "So, {w=0.3}do we have any plans for this {i}night{/i}?~"
+        m 1tsblu "So, {w=0.3}do we have any plans for this {i}night{/i}?~"
 
     else:
-        m "So, do we have any plans for this [mas_globals.time_of_day_3state]?"
+        m 1eua "So, do we have any plans for this [mas_globals.time_of_day_3state]?"
 
     $ del question, slow_response, question_time
 
     return
 
 label monika_holdme_reaction_wakeup_no_response:
-    m "I guess [heis] still sleeping.{w=5}{nw}"
-    # idle mode on + force exp
+    m 5ruc "I guess [heis] still sleeping.{w=5}{nw}"
+    python:
+        mas_moni_idle_disp.force_by_code("5dsa", duration=25, skip_dissolve=True)
+        persistent._mas_idle_data["sleeping_idle_brb"] = True
+        mas_globals.in_idle_mode = True
+        persistent._mas_in_idle_mode = True
+        renpy.save_persistent()
     return
 
 label monika_holdme_reaction_other:
