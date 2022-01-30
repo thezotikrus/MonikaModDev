@@ -2513,9 +2513,10 @@ label monika_holdme_reaction_wakeup:
     show monika 6tubsu with dissolve_monika
     pause 2.0
     m 6wubso "Oh!{w=1}{nw}"
+    window hide
 
     # To give an effect of different mood
-    if renpy.random() > 0.5:
+    if random.random() > 0.5:
         show monika 6gsbsb with dissolve_monika
     else:
         show monika 6hkbsb with dissolve_monika
@@ -2593,7 +2594,7 @@ label monika_holdme_reaction_wakeup:
     if mas_current_background == mas_background_def:
         m 1rtc "Although, the chair could be more comfortable..."
 
-    elif mas_isMoniLove() and random.random() > 0.7:
+    elif mas_isMoniLove() and random.random() > 0.5:
         m 1gsbsb "Although, I think we{w=0.05}{nw}"
         $ _history_list.pop()
         m "Although, I think {fast}I should've used my bed."
@@ -2611,17 +2612,40 @@ label monika_holdme_reaction_wakeup:
         m 1eua "So, do we have any plans for this [mas_globals.time_of_day_3state]?"
 
     $ del question, slow_response, question_time
-
     return
 
 label monika_holdme_reaction_wakeup_no_response:
     m 5ruc "I guess [heis] still sleeping.{w=5}{nw}"
     python:
-        mas_moni_idle_disp.force_by_code("5dsa", duration=25, skip_dissolve=True)
-        persistent._mas_idle_data["sleeping_idle_brb"] = True
+        mas_moni_idle_disp.force_by_code("5dsa", duration=25, redraw=False, skip_dissolve=True)
+        mas_moni_idle_disp.force_by_code("5eua", duration=15, clear=False, redraw=False, skip_dissolve=True)
+
+        # TODO: Update this with #7576
+        mas_idle_mailbox.send_idle_cb("monika_holdme_idle_callback")
+        persistent._mas_idle_data["monika_holdme_idle_callback"] = {"start_dt": datetime.datetime.now()}
         mas_globals.in_idle_mode = True
         persistent._mas_in_idle_mode = True
         renpy.save_persistent()
+    return
+
+label monika_holdme_idle_callback:
+    python:
+        was_long_brb = False
+        try:
+            was_long_brb = (
+                datetime.datetime.now() - persistent._mas_idle_data["monika_holdme_idle_callback"]["start_dt"]
+                > datetime.timedelta(minutes=30)
+            )
+        except KeyError:
+            pass
+
+    m 1hub "There you are!"
+    if not was_long_brb:
+        m 3eua "I just woke up recently and was waiting for you."
+    else:
+        m 1eua "I was waiting for you to return."
+
+    $ del was_long_brb
     return
 
 label monika_holdme_reaction_other:
