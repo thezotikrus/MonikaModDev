@@ -32,14 +32,18 @@ init python in mas_consumables:
     CONTAINER_NONE = None
     CONTAINER_PLATE = "plate"
     CONTAINER_CUP = "cup"
+    AMOUNT_SOME = "some"
 
     #Property names
     # key: marks the string to use when referencing the object's container
     # value: string - container name
-    PROP_CONTAINER = "container"
+    PROP_CONTAINER_REF = "container"
     # key: marks the reference for the object
     # value: string - reference name to use (slice, batch, etc.) (Used if no container found)
     PROP_OBJ_REF = "obj_ref"
+    # key: marks the reference for certain amount of the object
+    # value: string (e.g. 'some' or 'a few')
+    PROP_AMOUNT_REF = "amount_ref"
     # key: marks whether the consumable should be referred to in plural or not
     # value: boolean, True if plural, False if not.
     PROP_PLUR = "plural"
@@ -54,20 +58,22 @@ init python in mas_consumables:
 
     #Some templates for consumables
     PREP_HOT_DRINK = {
-        PROP_CONTAINER: CONTAINER_CUP,
+        PROP_CONTAINER_REF: CONTAINER_CUP,
+        PROP_AMOUNT_REF: AMOUNT_SOME,
         PROP_PLUR: False,
         PROP_PORTABLE: True,
         PROP_COMPATIBLE: True
     }
 
     NON_PREP_PASTRY = {
-        PROP_CONTAINER: CONTAINER_NONE,
+        PROP_CONTAINER_REF: CONTAINER_NONE,
         PROP_PLUR: False,
         PROP_COMPATIBLE: True
     }
 
     NON_PREP_CAKE = {
-        PROP_CONTAINER: CONTAINER_PLATE,
+        PROP_CONTAINER_REF: CONTAINER_PLATE,
+        PROP_AMOUNT_REF: AMOUNT_SOME,
         PROP_OBJ_REF: "slice",
         PROP_PLUR: False,
         PROP_COMPATIBLE: True
@@ -244,16 +250,23 @@ init 5 python:
             self.consumable_type = consumable_type
             self.disp_name = disp_name
             self.start_end_tuple_list = start_end_tuple_list
+
             if mas_consumables.CONS_FULL not in acs_map:
                 raise Exception("Consumable {0} is missing the required 'full' key in its acs map.".format(consumable_id))
+            if mas_consumables.CONS_HALFDONE not in acs_map:
+                acs_map[mas_consumables.CONS_HALFDONE] = acs_map[mas_consumables.CONS_FULL]
+            if mas_consumables.CONS_DONE not in acs_map:
+                acs_map[mas_consumables.CONS_DONE] = acs_map[mas_consumables.CONS_HALFDONE]
+
             self.acs_map = acs_map
             self.acs = acs_map[mas_consumables.CONS_FULL]
+
             self.cons_chance = cons_chance
             self.cons_low = cons_low
             self.cons_high = cons_high
 
             if late_entry_list is None:
-                self.late_entry_list = []
+                self.late_entry_list = list()
 
                 for start, end in start_end_tuple_list:
                     self.late_entry_list.append(start)
@@ -298,6 +311,17 @@ init 5 python:
                     "has_restock_warned": False,
                     "last_had": None
                 }
+
+        def __repr__(self):
+            """
+            Representation of this obj
+            """
+            return "<MASConsumable: (id: '{0}', {1}, stock: {2}/{3})>".format(
+                self.consumable_id,
+                "is enabled" if self.enabled() else "is disabled",
+                self.getStock(),
+                self.max_stock_amount
+            )
 
         def enabled(self):
             """
@@ -344,24 +368,6 @@ init 5 python:
                 value - value for this prop (assuming datetime.datetime)
             """
             persistent._mas_consumable_map[self.consumable_id]["last_had"] = value
-
-        def getFullAcs(self):
-            """
-            Returns the acs for this cons when Monika just started consuming it
-            """
-            return self.acs_map[mas_consumables.CONS_FULL]
-
-        def getHalfdoneAcs(self):
-            """
-            Returns the acs for this cons when Monika half-done consumed it
-            """
-            return self.acs_map.get(mas_consumables.CONS_HALFDONE, self.getFullAcs())
-
-        def getDoneAcs(self):
-            """
-            Returns the acs for this cons when Monika's done with it
-            """
-            return self.acs_map.get(mas_consumables.CONS_DONE, self.getHalfdoneAcs())
 
         def shouldHave(self, _now=None):
             """
@@ -509,8 +515,8 @@ init 5 python:
                     (Default: 1)
                 set_last_had - whether we update the last_had prop or not
                     (Default: True)
-                set_acs - whether we update the acs for his cons or not
-                    NOTE: you'd probably need to do it manually if you don't call use
+                set_acs - whether we update the acs for this cons or not
+                    NOTE: you'd probably need to do this manually if you don't call use
                     (Default: True)
             """
             servings_left = persistent._mas_consumable_map[self.consumable_id]["servings_left"]
@@ -524,7 +530,7 @@ init 5 python:
                 self.last_had = datetime.datetime.now()
 
             if set_acs:
-                self.acs = self.getFullAcs()
+                self.acs = self.acs_map[mas_consumables.CONS_FULL]
 
         def re_serve(self):
             """
@@ -785,13 +791,13 @@ init 5 python:
                     curr_cons_progress = cls.__getCurrentConsProgress(_type)
                     if curr_cons_progress is not None:
                         if 0.65 >= curr_cons_progress:
-                            appropriate_acs = curr_cons.getFullAcs()
+                            appropriate_acs = curr_cons.acs_map[mas_consumables.CONS_FULL]
 
                         elif 0.9 >= curr_cons_progress:
-                            appropriate_acs = curr_cons.getHalfdoneAcs()
+                            appropriate_acs = curr_cons.acs_map[mas_consumables.CONS_HALFDONE]
 
                         else:
-                            appropriate_acs = curr_cons.getDoneAcs()
+                            appropriate_acs = curr_cons.acs_map[mas_consumables.CONS_DONE]
 
                         if curr_cons.acs is not appropriate_acs:
                             monika_chr.remove_acs(curr_cons.acs)
@@ -1123,9 +1129,8 @@ init 5 python:
                     days_absent - amount of days the player was absent
                     now - current datetime
                 """
-                chance = random.randint(1, 100)
                 for day in range(days_absent):
-                    if chance <= consumable.cons_chance:
+                    if random.randint(1, 100) <= consumable.cons_chance:
                         consumable.use(servings, set_last_had=False, set_acs=False)
                         cons.last_had = now - datetime.timedelta(days=days_absent-day)
 
@@ -1323,7 +1328,7 @@ init 5 python:
                 thermos = renpy.random.choice(thermoses)
                 monika_chr.wear_acs(thermos)
 
-#START: consumable drink defs:
+#START: Consumable drink defs
 init 6 python:
     MASConsumable(
         consumable_id="coffee",
@@ -1348,13 +1353,16 @@ init 6 python:
         late_entry_list=[19],
         max_re_serve=3
     )
+#END: Consumable drink defs
 
+#START: Consumable food defs
     MASConsumable(
         consumable_id="candycane",
         consumable_type=store.mas_consumables.TYPE_FOOD,
         disp_name="candycane",
         ex_props={
-            mas_consumables.PROP_PLUR: True
+            mas_consumables.PROP_PLUR: True,
+            mas_consumables.PROP_AMOUNT_REF: mas_consumables.AMOUNT_SOME
         },
         start_end_tuple_list=[(11, 13), (16, 20)],
         acs_map={mas_consumables.CONS_FULL: mas_acs_candycane},
@@ -1373,7 +1381,8 @@ init 6 python:
         consumable_type=store.mas_consumables.TYPE_FOOD,
         disp_name="Christmas cookie",
         ex_props={
-            mas_consumables.PROP_OBJ_REF: "plate",
+            mas_consumables.PROP_OBJ_REF: mas_consumables.CONTAINER_PLATE,
+            mas_consumables.PROP_AMOUNT_REF: mas_consumables.AMOUNT_SOME,
             mas_consumables.PROP_PLUR: True,
             mas_consumables.PROP_COMPATIBLE: True
         },
@@ -1440,6 +1449,7 @@ init 6 python:
         prep_high=None,
         cons_high=30*60
     )
+#END: Consumable food defs
 
 #START: Finished brewing/drinking evs
 ##Finished brewing
@@ -1551,13 +1561,463 @@ label mas_get_food:
     return
 #END: Generic food evs
 
+# TODO: actually, this label could get a second arg that would tell us what we need to do (get/put away, etc)
+label mas_consumables_handling(consumable):
+    # We got a consumable to handle
+    # First, decide WHAT we need to do with it: finish prep, get, put away
+    # TODO: start prep event
+    python:
+        now = datetime.datetime.now()
+        has_plushie_out = monika_chr.is_wearing_acs(mas_acs_quetzalplushie)
+
+        consumable_container_ref = consumable.ex_props.get(mas_consumables.PROP_CONTAINER_REF)
+        consumable_obj_ref = consumable.ex_props.get(mas_consumables.PROP_OBJ_REF)
+        consumable_amount_ref = consumable.ex_props.get(mas_consumables.PROP_AMOUNT_REF)
+        consumable_plur = "s" if consumable.ex_props.get(mas_consumables.PROP_PLUR, False) else ""
+        # TODO: add methods for this
+        consume_time = persistent._mas_current_consumable[consumable.consumable_type]["consume_time"]
+        prep_time = persistent._mas_current_consumable[consumable.consumable_type]["prep_time"]
+
+        paired_consumable = MASConsumable.__getCurrentConsumable(not consumable.consumable_type)
+        if paired_consumable is not None:
+            paired_consumable_container_ref = paired_consumable.ex_props.get(mas_consumables.PROP_CONTAINER_REF)
+            paired_consumable_obj_ref = paired_consumable.ex_props.get(mas_consumables.PROP_OBJ_REF)
+            paired_consumable_amount_ref = paired_consumable.ex_props.get(mas_consumables.PROP_AMOUNT_REF)
+            paired_consumable_plur = "s" if paired_consumable.ex_props.get(mas_consumables.PROP_PLUR, False) else ""
+            pc_consume_time = persistent._mas_current_consumable[paired_consumable.consumable_type]["consume_time"]
+            pc_prep_time = persistent._mas_current_consumable[paired_consumable.consumable_type]["prep_time"]
+
+        else:
+            paired_consumable_container_ref = None
+            paired_consumable_obj_ref = None
+            paired_consumable_amount_ref = None
+            paired_consumable_plur = None
+            pc_consume_time = None
+            pc_prep_time = None
+
+        intro = None
+        line_start = None
+        line_mid = None
+        line_end = None
+
+        # Now branch
+
+        # Deal with this consumable
+        main_action = None
+        # Prepping
+        if prep_time is not None:
+            # Starting
+            if now < prep_time:
+                main_action = "starting_prep"
+
+            # Finishing
+            else:
+                main_action = "finished_prep"
+
+        # Starting/finishing consuming
+        elif consume_time is not None:
+            # Starting
+            if now < consume_time:
+                main_action = "getting_cons"
+
+            # Finishing
+            else:
+                main_action = "finished_cons"
+
+        # Deal with the second consumable
+        second_action = None
+        # Prepping
+        if pc_prep_time is not None:
+            # Starting
+            if (
+                now < pc_prep_time
+                and (
+                    mas_inEVL(paired_consumable.start_prep_evl)# It's either already queued
+                    or mas_getEVLPropValue(paired_consumable.start_prep_evl, "action", None) is not None# Or has an action and will be queued soon
+                )
+            ):
+                second_action = "starting_prep"
+
+            # Finishing
+            elif (
+                now > pc_prep_time
+                and (
+                    mas_inEVL(paired_consumable.finish_prep_evl)
+                    or mas_getEVLPropValue(paired_consumable.finish_prep_evl, "action", None) is not None
+                )
+            ):
+                second_action = "finished_prep"
+
+        # Starting/finishing consuming
+        elif pc_consume_time is not None:
+            # Starting
+            if (
+                now < pc_consume_time
+                and (
+                    mas_inEVL(paired_consumable.get_cons_evl)
+                    or mas_getEVLPropValue(paired_consumable.get_cons_evl, "action", None) is not None
+                )
+            ):
+                second_action = "getting_cons"
+
+            # Finishing
+            elif (
+                now > pc_consume_time
+                and (
+                    mas_inEVL(paired_consumable.finish_cons_evl)
+                    or mas_getEVLPropValue(paired_consumable.finish_cons_evl, "action", None) is not None
+                )
+            ):
+                second_action = "finished_cons"
+
+    # This should never happen
+    if main_action is None:
+        return
+
+    elif main_action == "starting_prep":
+        if second_action == "starting_prep":
+            pass
+
+        elif second_action == "finished_prep":
+            pass
+
+        elif second_action == "getting_cons":
+            pass
+
+        elif second_action == "finished_cons":
+            pass
+
+        # We don't have/need to do anything with the second cons
+        else:
+            pass
+
+    elif main_action == "finished_prep":
+        pass
+
+    elif main_action == "getting_cons":
+        python:
+            intro = None
+            line_start = "I'm going to "
+
+            if second_action == "starting_prep":
+                pass
+
+            elif second_action == "finished_prep":
+                pass
+
+            elif second_action == "getting_cons":
+                pass
+
+            elif second_action == "finished_cons":
+                pass
+
+            else:
+                pass
+
+    elif main_action == "finished_cons":
+        python:
+            # In case the acs wasn't updated, we do it here
+            cons_done_acs = consumable.acs_map[mas_consumables.CONS_DONE]
+            if consumable.acs is not cons_done_acs:
+                monika_chr.remove_acs(consumable.acs)
+                curr_cons.acs = cons_done_acs
+                monika_chr.wear_acs(consumable.acs)
+
+            get_more_consumable = (
+                consumable.shouldHave()
+                and (consumable.prepable() or (not consumable.prepable() and consumable.hasServing()))
+            )
+
+            intro = "I finished my [consumable.disp_name][consumable_plur]."
+            line_start = "I'm going to "
+
+            if second_action == "starting_prep":
+                pass
+
+            elif second_action == "finished_prep":
+                pass
+
+            elif second_action == "getting_cons":
+                pass
+
+            elif second_action == "finished_cons":
+                pass
+
+            else:
+                pass
+
+    return
+
+label mas_consumables_generic_startprep(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_finishprep(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_get(first_cons, second_cons):
+    python:
+        intro = None
+        line_start = "I'm going to "
+
+        if consumable_container_ref:
+            line_mid = renpy.substitute("get [mas_a_an_str(consumable_container_ref)] of [consumable.disp_name][consumable_plur].")
+
+        elif consumable_obj_ref:
+            line_mid = renpy.substitute("get [mas_a_an_str(consumable_obj_ref)] of [consumable.disp_name][consumable_plur].")
+
+        else:
+            a_an = (consumable_amount_ref or "some") if consumable_plur else mas_a_an(consumable.disp_name, ignore_case=True)
+            line_mid = renpy.substitute("get [a_an] [consumable.disp_name][plur].")
+
+        line_end = ""
+    return
+
+label mas_consumables_generic_finish(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_startprep_and_startprep(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_startprep_and_finishprep(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_finishprep_and_finishprep(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_get_and_get(first_cons, second_cons):
+    python:
+        intro = None
+        line_start = "I'm going to "
+
+        if paired_consumable_container_ref:
+            line_mid = renpy.substitute("get [mas_a_an_str(paired_consumable_container_ref)] of [paired_consumable.disp_name][paired_consumable_plur] ")
+
+        elif paired_consumable_obj_ref:
+            line_mid = renpy.substitute("get [mas_a_an_str(paired_consumable_obj_ref)] of [paired_consumable.disp_name][paired_consumable_plur] ")
+
+        else:
+            a_an = (paired_consumable_amount_ref or "some") if paired_consumable_plur else mas_a_an(paired_consumable.disp_name, ignore_case=True)
+            line_mid = renpy.substitute("get [a_an] [paired_consumable.disp_name][paired_consumable_plur] ")
+
+        if consumable_container_ref:
+            line_end = renpy.substitute("and [mas_a_an_str(consumable_container_ref)] of [consumable.disp_name][consumable_plur].")
+
+        elif consumable_obj_ref:
+            line_end = renpy.substitute("and [mas_a_an_str(consumable_obj_ref)] of [consumable.disp_name][consumable_plur].")
+
+        else:
+            a_an = (consumable_amount_ref or "some") if consumable_plur else mas_a_an(consumable.disp_name, ignore_case=True)
+            line_end = renpy.substitute("and [a_an] [consumable.disp_name][consumable_plur].")
+    return
+
+label mas_consumables_generic_get_and_finish(first_cons, second_cons):
+    python:
+        # In case the acs wasn't updated, we do it here
+        cons_done_acs = paired_consumable.acs_map[mas_consumables.CONS_DONE]
+        if paired_consumable.acs is not cons_done_acs:
+            monika_chr.remove_acs(paired_consumable.acs)
+            curr_cons.acs = cons_done_acs
+            monika_chr.wear_acs(paired_consumable.acs)
+
+        get_more_paired_consumable = (
+            paired_consumable.shouldHave()
+            and (paired_consumable.prepable() or (not paired_consumable.prepable() and paired_consumable.hasServing()))
+        )
+
+        intro = renpy.substitute("I finished my [paired_consumable.disp_name][paired_consumable_plur].")
+        line_start = "I'm going to "
+
+        if get_more_paired_consumable:
+            if paired_consumable_container_ref:
+                line_mid = renpy.substitute("get another [paired_consumable_container_ref] ")
+
+            elif paired_consumable_obj_ref:
+                line_mid = renpy.substitute("get another [paired_consumable_obj_ref] ")
+
+            else:
+                more = "more" if paired_consumable_plur else "another one"
+                line_mid = renpy.substitute("get [more] ")
+
+        else:
+            if paired_consumable_container_ref:
+                line_mid = renpy.substitute("put this [paired_consumable_container_ref] away ")
+
+            # This case is for both paired_consumable_obj_ref and generic else path
+            else:
+                line_mid = renpy.substitute("put this away ")
+
+        # This works for both paths above
+        if consumable_container_ref:
+            line_end = renpy.substitute("and grab [mas_a_an_str(consumable_container_ref)] of [consumable.disp_name][consumable_plur].")
+
+        elif consumable_obj_ref:
+            line_end = renpy.substitute("and grab [mas_a_an_str(consumable_obj_ref)] of [consumable.disp_name][consumable_plur].")
+
+        else:
+            a_an = (consumable_amount_ref or "some") if consumable_plur else mas_a_an(consumable.disp_name, ignore_case=True)
+            line_end = renpy.substitute("and grab [a_an] [consumable.disp_name][consumable_plur].")
+    return
+
+label mas_consumables_generic_get_and_startprep(first_cons, second_cons):
+    python:
+        intro = None
+        line_start = "I'm going to "
+
+        if second_action == "starting_prep":
+            if paired_consumable_amount_ref is not None:
+                some = paired_consumable_amount_ref + paired_consumable.disp_name + paired_consumable_plur
+            else:
+                some = mas_a_an_str(paired_consumable.disp_name) + paired_consumable_plur
+            line_mid = renpy.substitute("make [some] ")
+
+            if consumable_container_ref:
+                line_end = renpy.substitute("and get [mas_a_an_str(consumable_container_ref)] of [consumable.disp_name][consumable_plur].")
+
+            elif consumable_obj_ref:
+                line_end = renpy.substitute("and get [mas_a_an_str(consumable_obj_ref)] of [consumable.disp_name][consumable_plur].")
+
+            else:
+                a_an = (consumable_amount_ref or "some") if consumable_plur else mas_a_an(consumable.disp_name, ignore_case=True)
+                line_end = renpy.substitute("and get [a_an] [consumable.disp_name][consumable_plur].")
+    return
+
+label mas_consumables_generic_get_and_finishprep(first_cons, second_cons):
+    python:
+        is_are = "are" if plur else "is"
+        intro = renpy.substitute("Oh, my [paired_consumable.disp_name][paired_consumable_plur] [is_are] ready.")
+        line_start = "I'm going to "
+
+        if paired_consumable_container_ref:
+            line_mid = renpy.substitute("get [mas_a_an_str(paired_consumable_container_ref)] ")
+
+        elif paired_consumable_obj_ref:
+            line_mid = renpy.substitute("get [mas_a_an_str(paired_consumable_obj_ref)] ")
+
+        else:
+            some = (paired_consumable_amount_ref or "some") if paired_consumable_plur else "one"
+            line_mid = renpy.substitute("get [some] ")
+
+        if consumable_container_ref:
+            line_end = renpy.substitute("along with [mas_a_an_str(consumable_container_ref)] of [consumable.disp_name][consumable_plur].")
+
+        elif consumable_obj_ref:
+            line_end = renpy.substitute("along with [mas_a_an_str(consumable_obj_ref)] of [consumable.disp_name][consumable_plur].")
+
+        else:
+            a_an = (consumable_amount_ref or "some") if consumable_plur else mas_a_an(consumable.disp_name, ignore_case=True)
+            line_end = renpy.substitute("along with [a_an] [consumable.disp_name][consumable_plur].")
+    return
+
+label mas_consumables_generic_finish_and_finish(first_cons, second_cons):
+    return
+
+label mas_consumables_generic_finish_and_startprep(first_cons, second_cons):
+    python:
+        # In case the acs wasn't updated, we do it here
+        cons_done_acs = first_cons.acs_map[mas_consumables.CONS_DONE]
+        if first_cons.acs is not cons_done_acs:
+            monika_chr.remove_acs(first_cons.acs)
+            first_cons.acs = cons_done_acs
+            monika_chr.wear_acs(first_cons.acs)
+
+        get_more_first_cons = (
+            first_cons.shouldHave()
+            and (first_cons.prepable() or (not first_cons.prepable() and first_cons.hasServing()))
+        )
+
+        intro = "I finished my [first_cons.disp_name][first_cons_plur]."
+        line_start = "I'm going to "
+
+        if not get_more_first_cons:
+            if first_cons_container_ref:
+                line_mid = renpy.substitute("put this [first_cons_container_ref] away ")
+
+            else:
+                line_mid = renpy.substitute("put this away ")
+
+        else:
+            if first_cons_container_ref:
+                line_mid = renpy.substitute("get another [first_cons_container_ref] ")
+
+            elif first_cons_obj_ref:
+                line_mid = renpy.substitute("get another [first_cons_obj_ref] ")
+
+            else:
+                more = "more" if first_cons_plur else "another one"
+                line_mid = renpy.substitute("get [more] ")
+
+        # This works for both paths above
+        if second_cons_amount_ref is not None:
+            some = second_cons_amount_ref + second_cons.disp_name + second_cons_plur
+        else:
+            some = mas_a_an_str(second_cons.disp_name) + second_cons_plur
+        line_end = renpy.substitute("and make [some].")
+    return
+
+label mas_consumables_generic_finish_and_finishprep(first_cons, second_cons):
+    python:
+        # In case the acs wasn't updated, we do it here
+        cons_done_acs = first_cons.acs_map[mas_consumables.CONS_DONE]
+        if first_cons.acs is not cons_done_acs:
+            monika_chr.remove_acs(first_cons.acs)
+            first_cons.acs = cons_done_acs
+            monika_chr.wear_acs(first_cons.acs)
+
+        get_more_first_cons = (
+            first_cons.shouldHave()
+            and (first_cons.prepable() or (not first_cons.prepable() and first_cons.hasServing()))
+        )
+
+        is_are = "are" if plur else "is"
+        intro = renpy.substitute("I finished my [first_cons.disp_name][first_cons_plur].")
+        line_start = "I'm going to "
+
+        if not get_more_first_cons:
+            if first_cons_container_ref:
+                line_mid = renpy.substitute("put this [first_cons_container_ref] away ")
+
+            else:
+                line_mid = renpy.substitute("put this away ")
+
+            if second_cons_container_ref:
+                line_end = renpy.substitute("and get [mas_a_an_str(second_cons_container_ref)] of [second_cons.disp_name][second_cons_plur].")
+
+            elif second_cons_obj_ref:
+                line_end = renpy.substitute("and get [mas_a_an_str(second_cons_obj_ref)] of [second_cons.disp_name][second_cons_plur].")
+
+            else:
+                a_an = (second_cons_amount_ref or "some") if (second_cons_plur or second_cons_amount_ref) else mas_a_an(second_cons.disp_name, ignore_case=True)
+                line_end = renpy.substitute("and get [a_an] [second_cons.disp_name][second_cons_plur].")
+
+        else:
+            if first_cons_container_ref:
+                line_mid = renpy.substitute("get another [first_cons_container_ref] ")
+
+            elif first_cons_obj_ref:
+                line_mid = renpy.substitute("get another [first_cons_obj_ref] ")
+
+            else:
+                more = "more" if (first_cons_plur or first_cons_amount_ref) else "another one"
+                line_mid = renpy.substitute("get [more] ")
+
+            if second_cons_container_ref:
+                line_end = renpy.substitute("along with [mas_a_an_str(second_cons_container_ref)] of [second_cons.disp_name][second_cons_plur].")
+
+            elif second_cons_obj_ref:
+                line_end = renpy.substitute("along with [mas_a_an_str(second_cons_obj_ref)] of [second_cons.disp_name][second_cons_plur].")
+
+            else:
+                a_an = (second_cons_amount_ref or "some") if (second_cons_plur or second_cons_amount_ref) else mas_a_an(second_cons.disp_name, ignore_case=True)
+                line_end = renpy.substitute("along with [a_an] [second_cons.disp_name][second_cons_plur].")
+    return
+
 #START: Generic consumable labels
 label mas_consumables_generic_get(consumable):
     #Get our dlg_props
     python:
         dlg_props = consumable.ex_props
 
-        container = dlg_props.get(mas_consumables.PROP_CONTAINER)
+        container = dlg_props.get(mas_consumables.PROP_CONTAINER_REF)
         obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
         plur = "s" if dlg_props.get(mas_consumables.PROP_PLUR, False) else ""
 
@@ -1613,7 +2073,7 @@ label mas_consumables_generic_finish_having(consumable):
     #Some prep
     python:
         # In case the acs wasn't updated, we do it here
-        cons_done_acs = consumable.getDoneAcs()
+        cons_done_acs = consumable.acs_map[mas_consumables.CONS_DONE]
         if consumable.acs is not cons_done_acs:
             monika_chr.remove_acs(consumable.acs)
             curr_cons.acs = cons_done_acs
@@ -1626,12 +2086,12 @@ label mas_consumables_generic_finish_having(consumable):
 
         dlg_props = consumable.ex_props
 
-        container = dlg_props.get(mas_consumables.PROP_CONTAINER)
+        container = dlg_props.get(mas_consumables.PROP_CONTAINER_REF)
         obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
         plur = "s" if dlg_props.get(mas_consumables.PROP_PLUR, False) else ""
 
         dlg_map = {
-            mas_consumables.PROP_CONTAINER: {
+            mas_consumables.PROP_CONTAINER_REF: {
                 0: "I'm going to put this [container] away.",
                 1: "I'm going to get another [container]."
             },
@@ -1647,7 +2107,7 @@ label mas_consumables_generic_finish_having(consumable):
 
         #We need to parse the dialogue depending on the given dlg_props
         if container:
-            line_starter = renpy.substitute(dlg_map[mas_consumables.PROP_CONTAINER][get_more])
+            line_starter = renpy.substitute(dlg_map[mas_consumables.PROP_CONTAINER_REF][get_more])
 
         #Otherwise we use the object reference for this
         elif obj_ref:
@@ -1692,7 +2152,7 @@ label mas_consumables_generic_finish_having(consumable):
             #We still need to do this regarless (usually handled in use)
             else:
                 consumable.last_had = datetime.datetime.now()
-                consumable.acs = consumable.getFullAcs()
+                consumable.acs = consumable.acs_map[mas_consumables.CONS_FULL]
 
         renpy.pause(4.0, hard=True)
 
@@ -1784,7 +2244,7 @@ label mas_consumables_generic_running_out(consumable):
         python:
             dlg_props = consumable.ex_props
 
-            container = dlg_props.get(mas_consumables.PROP_CONTAINER)
+            container = dlg_props.get(mas_consumables.PROP_CONTAINER_REF)
             obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
             plur = "s" if dlg_props.get(mas_consumables.PROP_PLUR, False) else ""
 
@@ -1821,7 +2281,7 @@ label mas_consumables_generic_critical_low(consumable):
     python:
         dlg_props = consumable.ex_props
 
-        container = dlg_props.get(mas_consumables.PROP_CONTAINER)
+        container = dlg_props.get(mas_consumables.PROP_CONTAINER_REF)
         obj_ref = dlg_props.get(mas_consumables.PROP_OBJ_REF)
         plur = "s" if dlg_props.get(mas_consumables.PROP_PLUR, False) else ""
 

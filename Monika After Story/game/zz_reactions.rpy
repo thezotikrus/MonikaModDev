@@ -1593,7 +1593,6 @@ label mas_reaction_cupcake:
     python:
         mas_receivedGift("mas_reaction_cupcake")
         cupcake = mas_getConsumable("cupcake")
-        cupcake.restock(servings=6)
         curr_drink = MASConsumable._getCurrentDrink()
         curr_food = MASConsumable._getCurrentFood()
 
@@ -1604,11 +1603,15 @@ label mas_reaction_cupcake:
         m 3ekb "You can give me more once I eat the ones I have now, alright?"
 
     else:
+        $ cupcake.restock(servings=6)
         if cupcake.enabled():
             # We can select a new random sprite here
             if curr_food is not cupcake:
-                $ cupcake.acs_map[mas_consumables.CONS_FULL] = random.choice((mas_acs_cupcake_smug, mas_acs_cupcake_owo, mas_acs_cupcake_uwu))
-                $ cupcake.acs = cupcake.acs_map[mas_consumables.CONS_FULL]
+                python:
+                    new_cupcake_acs = random.choice((mas_acs_cupcake_smug, mas_acs_cupcake_owo, mas_acs_cupcake_uwu))
+                    for key in cupcake.acs_map:
+                        cupcake.acs_map[key] = new_cupcake_acs
+                    cupcake.acs = new_cupcake_acs
 
             $ mas_giftCapGainAff(0.5)
 
@@ -1856,7 +1859,6 @@ init 5 python:
 label mas_reaction_christmascookies:
     python:
         christmascookies = mas_getConsumable("christmascookies")
-        christmascookies.restock(10)
         mas_giftCapGainAff(1)
         is_having_food = bool(MASConsumable._getCurrentFood())
 
@@ -1866,6 +1868,7 @@ label mas_reaction_christmascookies:
         m 3eksdla "You can give me more after I finish these, okay?"
 
     else:
+        $ christmascookies.restock(10)
         if christmascookies.enabled():
             m 1wuo "...another batch of Christmas cookies!"
             m 3wuo "That's a whole lot of cookies, [player]!"
@@ -1915,7 +1918,6 @@ init 5 python:
 label mas_reaction_candycane:
     python:
         candycane = mas_getConsumable("candycane")
-        candycane.restock(9)
         mas_giftCapGainAff(1)
         is_having_food = bool(MASConsumable._getCurrentFood())
 
@@ -1924,6 +1926,7 @@ label mas_reaction_candycane:
         m 1eka "You can save them for later, alright?"
 
     else:
+        $ candycane.restock(9)
         if candycane.enabled():
             m 3hua "More candy canes!"
             m 3hub "Thanks [player]!"
@@ -2849,7 +2852,6 @@ label mas_reaction_cinnamon_buns:
     python:
         mas_receivedGift("mas_reaction_cinnamon_buns")
         cinnamon_bun = mas_getConsumable("cinnamon_bun")
-        cinnamon_bun.restock(servings=6)
         curr_drink = MASConsumable._getCurrentDrink()
         curr_food = MASConsumable._getCurrentFood()
 
@@ -2861,6 +2863,7 @@ label mas_reaction_cinnamon_buns:
     else:
         if cinnamon_bun.enabled():
             $ mas_giftCapGainAff(0.5)
+            $ cinnamon_bun.restock(servings=6)
 
             if cinnamon_bun.hasServing():
                 m 1eub "More buns!"
