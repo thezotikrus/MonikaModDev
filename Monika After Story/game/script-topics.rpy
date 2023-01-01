@@ -2485,6 +2485,7 @@ label monika_holdme_start(set_events=True):
 
 label monika_holdme_reactions:
     python:
+        # BUG: this needs to be verified/fixed
         mas_holdme.holdme_elapsed_time = datetime.datetime.now() - mas_holdme.holdme_start_time
         mas_history._pm_holdme_adj_times(mas_holdme.holdme_elapsed_time)
 
