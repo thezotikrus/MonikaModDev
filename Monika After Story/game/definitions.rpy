@@ -3536,9 +3536,18 @@ init -999 python:
     class MASMouseFollowerTooltip(Tooltip, renpy.Displayable):
         """
         Tooltip that follows your mouse cursor
+
+        PROPERTIES:
+            x - x coord
+            y - y coord
+            xoffset - x offset for the text
+            yoffset - yoffset for the text
+            value - current text
+            default - default text
         """
         OUTLINES = []
         OUTLINES_DARK = [(1, "#000", 0, 0)]
+        DEF_TEXT_STYLE = "main_menu_version"
 
         def __init__(self, default="", xoffset=15, yoffset=15, **kwargs):
             """
@@ -3570,7 +3579,7 @@ init -999 python:
                     kwargs["outlines"] = MASMouseFollowerTooltip.OUTLINES_DARK
 
             if "style" not in kwargs:
-                kwargs["style"] = "main_menu_version"
+                kwargs["style"] = MASMouseFollowerTooltip.DEF_TEXT_STYLE
 
             self._text = renpy.text.text.Text(default, **kwargs)
 
