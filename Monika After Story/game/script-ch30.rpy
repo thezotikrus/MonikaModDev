@@ -2427,6 +2427,9 @@ label ch30_day:
         if store.mas_can_import.certifi():
             store.mas_can_import.certifi.ch30_day_cert_update()
 
+        # Update screnshots path
+        store.config.screenshot_pattern = store.mas_utils.get_screenshot_pattern()
+
     return
 
 

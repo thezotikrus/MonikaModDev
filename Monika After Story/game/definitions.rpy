@@ -5562,6 +5562,47 @@ init -100 python in mas_utils:
             s = s.replace(c, "")
         return s
 
+    def get_screenshot_pattern(
+        directory="screenshots",
+        filename="screenshot%04d.png",
+        date=None
+    ):
+        """
+        Returns a screenshot pattern for the date
+        Example: 'screenshots/1970/January/1/screenshot0001.png'
+
+        IN:
+            directory - str, directory to store screenshots in
+                (Default: 'screenshots')
+            filename - str, filename pattern for screenshots
+                (Default: 'screenshot%04d.png')
+            date - datetime.date|None - date to use for sub-folders
+                if None, uses todays date
+                (Default: None)
+
+        OUT:
+            str
+        """
+        if date is None:
+            date = datetime.date.today()
+
+        year, month, day = date.strftime("%Y %B %d").split(" ")
+
+        dir_path = os.path.join(
+            directory,
+            year,
+            month,
+            day
+        )
+
+        try:
+            # In case teh dir doesn't exist, we need to create it
+            os.makedirs(dir_path)
+        except OSError:
+            pass
+
+        return os.path.join(dir_path, filename)
+
 
 init -985 python:
     import datetime

@@ -130,3 +130,7 @@ define config.main_menu_music = audio.t1
 
 define config.window_show_transition = dissolve_textbox
 define config.window_hide_transition = dissolve_textbox
+
+## Change where screenshots are stored
+## This will be dynamically adjusted in ch30_day
+define config.screenshot_pattern = store.mas_utils.get_screenshot_pattern()
